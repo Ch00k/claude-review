@@ -40,6 +40,11 @@ var db *sql.DB
 
 // getDataDir returns the data directory for claude-review
 func getDataDir() (string, error) {
+	// Check for CR_DATA_DIR environment variable first
+	if dataDir := os.Getenv("CR_DATA_DIR"); dataDir != "" {
+		return dataDir, nil
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user home directory: %w", err)

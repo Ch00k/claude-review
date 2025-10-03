@@ -150,7 +150,12 @@ func daemonize() error {
 
 	// Parent exits immediately
 	pidFile, _ := getPIDFilePath()
+	port := os.Getenv("CR_LISTEN_PORT")
+	if port == "" {
+		port = "4779"
+	}
 	fmt.Printf("Server started as daemon\n")
+	fmt.Printf("Port: %s\n", port)
 	fmt.Printf("PID file: %s\n", pidFile)
 	fmt.Printf("Log file: %s\n", logFile)
 	return nil
@@ -233,8 +238,13 @@ func statusDaemon() error {
 	pidFile, _ := getPIDFilePath()
 	dataDir, _ := getDataDir()
 	logFile := filepath.Join(dataDir, "server.log")
+	port := os.Getenv("CR_LISTEN_PORT")
+	if port == "" {
+		port = "4779"
+	}
 
 	fmt.Printf("Server is running (PID: %d)\n", pid)
+	fmt.Printf("Port: %s\n", port)
 	fmt.Printf("PID file: %s\n", pidFile)
 	fmt.Printf("Log file: %s\n", logFile)
 	return nil

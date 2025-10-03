@@ -129,7 +129,10 @@ func runServer() {
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("frontend/static"))))
 
 	// Start server
-	port := "4779"
+	port := os.Getenv("CR_LISTEN_PORT")
+	if port == "" {
+		port = "4779"
+	}
 	if !*daemonChild {
 		fmt.Printf("Starting server on http://localhost:%s\n", port)
 	}

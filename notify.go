@@ -5,11 +5,17 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 )
 
 // notifyServerCommentsResolved sends a broadcast event to the server
 // to notify connected clients that comments have been resolved
 func notifyServerCommentsResolved(projectDir, filePath string) {
+	port := os.Getenv("CR_LISTEN_PORT")
+	if port == "" {
+		port = "4779"
+	}
+
 	payload := map[string]string{
 		"project_directory": projectDir,
 		"file_path":         filePath,
@@ -22,7 +28,7 @@ func notifyServerCommentsResolved(projectDir, filePath string) {
 		return
 	}
 
-	resp, err := http.Post("http://localhost:4779/api/events", "application/json", bytes.NewReader(data))
+	resp, err := http.Post("http://localhost:"+port+"/api/events", "application/json", bytes.NewReader(data))
 	if err != nil {
 		// Server might not be running - just log and continue
 		log.Printf("Note: Could not notify server (server might not be running): %v", err)

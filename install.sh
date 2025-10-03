@@ -99,14 +99,6 @@ mkdir -p "$INSTALL_DIR"
 mkdir -p "$DATA_DIR"
 mkdir -p "$CLAUDE_COMMANDS_DIR"
 
-# Backup current binary during upgrade
-if [ "$UPGRADE_MODE" = true ]; then
-    BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    BINARY_BACKUP="$INSTALL_DIR/claude-review.${CURRENT_VERSION}.${BACKUP_TIMESTAMP}"
-    cp "$INSTALL_DIR/claude-review" "$BINARY_BACKUP"
-    echo "Current binary backed up to: $BINARY_BACKUP"
-fi
-
 # Download and install binary
 echo "Installing claude-review command line tool..."
 curl -sSL "$BINARY_URL" -o "$INSTALL_DIR/claude-review"
