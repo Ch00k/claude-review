@@ -17,7 +17,7 @@ fi
 
 # Get latest release information
 echo "Fetching latest release information..."
-RELEASE_INFO=$(curl -sSL https://api.github.com/repos/anthropics/claude-review/releases/latest)
+RELEASE_INFO=$(curl -sSL https://api.github.com/repos/Ch00k/claude-review/releases/latest)
 LATEST_VERSION=$(echo "$RELEASE_INFO" | grep -o '"tag_name": "[^"]*"' | cut -d'"' -f4)
 
 if [ -n "$LATEST_VERSION" ]; then
