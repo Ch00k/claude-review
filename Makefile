@@ -4,7 +4,7 @@
 
 CGO_ENABLED = 1
 CR_EXECUTABLE_FILENAME ?= claude-review
-CR_WEB_ASSETS_FILENAME ?= frontend-assets.tar.gz
+CR_ASSETS_FILENAME ?= assets.tar.gz
 CR_BUILD_ARTIFACTS_DIR ?= dist
 
 
@@ -37,7 +37,7 @@ build:
 	go build -o ./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} .
 
 assets:
-	tar -czf ./${CR_BUILD_ARTIFACTS_DIR}/${CR_WEB_ASSETS_FILENAME} frontend/
+	tar -czf ./${CR_BUILD_ARTIFACTS_DIR}/${CR_ASSETS_FILENAME} frontend/ slash-commands/ hooks/
 
 build-release: build assets
 

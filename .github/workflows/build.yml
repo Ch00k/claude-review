@@ -116,5 +116,5 @@ jobs:
         with:
           files: |
             ./dist/claude-review-${{ matrix.goos }}-${{ matrix.goarch }}
-            ${{ matrix.goos == 'linux' && matrix.goarch == 'amd64' && './dist/frontend-assets.tar.gz' || '' }}
+            ${{ matrix.goos == 'linux' && matrix.goarch == 'amd64' && './dist/assets.tar.gz' || '' }}
           generate_release_notes: true
