@@ -1,0 +1,120 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+
+env:
+  GO_VERSION: 1.25.x
+  CGO_ENABLED: 1
+  CR_BUILD_ARTIFACTS_DIR: dist
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8.0.0
+
+      - name: Run prettier
+        uses: creyD/prettier_action@v4.6
+        with:
+          prettier_options: --check frontend/
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests
+        run: make test-ci
+
+  release:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    if: startsWith(github.ref, 'refs/tags/')
+
+    needs:
+      - lint
+      - test
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            os: ubuntu-latest
+
+          - goos: linux
+            goarch: arm64
+            os: ubuntu-latest
+
+          - goos: darwin
+            goarch: amd64
+            os: macos-latest
+
+          - goos: darwin
+            goarch: arm64
+            os: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install dependencies (Linux)
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CC: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
+          CR_EXECUTABLE_FILENAME: claude-review-${{ matrix.goos }}-${{ matrix.goarch }}
+        run: make build
+
+      - name: Build assets
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        run: make assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./dist/claude-review-${{ matrix.goos }}-${{ matrix.goarch }}
+            ${{ matrix.goos == 'linux' && matrix.goarch == 'amd64' && './dist/frontend-assets.tar.gz' || '' }}
+          generate_release_notes: true
