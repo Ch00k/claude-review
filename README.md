@@ -50,3 +50,14 @@ After installation, follow the displayed instructions to add the hook configurat
 5. Run `/address-comments PLAN.md` in your Claude Code session to pull the pending comments, apply edits, and resolve
    them
 6. Watch the plan automatically reload in your browser, repeating the cycle until the document matches your intent
+
+## Example
+
+### Ask Claude Code to create a plan
+![Create a plan](screenshots/create.png)
+
+### Review the plan in a browser
+![Review in browser](screenshots/review.png)
+
+### Ask Claude Code to address your review comments
+![Address comments](screenshots/address.png)
