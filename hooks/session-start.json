@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-review server --status >/dev/null 2>&1 || claude-review server --daemon"
+          },
+          {
+            "type": "command",
+            "command": "claude-review register"
+          }
+        ]
+      }
+    ]
+  }
+}

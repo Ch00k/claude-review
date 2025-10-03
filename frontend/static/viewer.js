@@ -21,7 +21,7 @@
         createCommentPopup();
         createCommentPanel();
         loadExistingComments();
-        // setupSSE(); // Disabled for now
+        setupSSE();
     }
 
     function initTextSelection() {
@@ -574,7 +574,7 @@
             file_path: filePath,
         });
 
-        const eventSource = new EventSource(`/events?${params}`);
+        const eventSource = new EventSource(`/api/events?${params}`);
 
         eventSource.addEventListener('file_updated', (event) => {
             console.log('File updated event received:', event.data);

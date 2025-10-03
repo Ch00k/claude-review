@@ -254,28 +254,6 @@ func renderDirectoryListing(w http.ResponseWriter, r *http.Request, projectDir, 
 
 // API Handlers
 
-func handleCreateProject(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Directory string `json:"directory"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	project, err := createProject(req.Directory)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(project); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 	var comment Comment
 
@@ -291,46 +269,6 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(comment); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func handleGetComments(w http.ResponseWriter, r *http.Request) {
-	projectDir := r.URL.Query().Get("project_directory")
-	filePath := r.URL.Query().Get("file_path")
-	resolved := r.URL.Query().Get("resolved") == "true"
-
-	comments, err := getComments(projectDir, filePath, resolved)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(comments); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func handleResolveComments(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ProjectDirectory string `json:"project_directory"`
-		FilePath         string `json:"file_path"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	count, err := resolveComments(req.ProjectDirectory, req.FilePath)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]int{"resolved_count": count}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -370,13 +308,6 @@ func handleDeleteComment(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"status": "deleted"}); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

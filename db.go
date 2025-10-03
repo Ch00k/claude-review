@@ -38,26 +38,31 @@ type Comment struct {
 
 var db *sql.DB
 
-func initDB() error {
-	// Get XDG_DATA_HOME directory
+// getDataDir returns the data directory for claude-review
+func getDataDir() (string, error) {
 	dataHome := os.Getenv("XDG_DATA_HOME")
 	if dataHome == "" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			return fmt.Errorf("failed to get user home directory: %w", err)
+			return "", fmt.Errorf("failed to get user home directory: %w", err)
 		}
 		dataHome = filepath.Join(homeDir, ".local", "share")
 	}
+	return filepath.Join(dataHome, "claude-review"), nil
+}
 
+func initDB() error {
 	// Create claude-review directory
-	dbDir := filepath.Join(dataHome, "claude-review")
+	dbDir, err := getDataDir()
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(dbDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 
 	// Open database
 	dbPath := filepath.Join(dbDir, "comments.db")
-	var err error
 	db, err = sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)

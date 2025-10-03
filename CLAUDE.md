@@ -22,6 +22,9 @@ claude-review is a lightweight companion for working on planning documents with 
 - **db.go**: SQLite database layer for projects and comments
 - **markdown.go**: Custom goldmark renderer that adds `data-line-start` and `data-line-end` attributes to HTML elements
 - **sse.go**: Server-Sent Events hub for real-time browser updates
+- **daemon.go**: Daemon process management (start, stop, status, PID tracking)
+- **watcher.go**: File system watcher using fsnotify for automatic reload on file changes
+- **notify.go**: HTTP client for notifying server about resolved comments
 
 ### Frontend
 - **frontend/templates/**: Go HTML templates (viewer.html, directory.html, index.html)
@@ -78,12 +81,26 @@ make release-major      # Create major version release (X.0.0)
 The markdown.go renderer walks the Goldmark AST and adds `data-line-start` and `data-line-end` attributes to block-level HTML elements. This enables the frontend to map user text selections back to source line numbers.
 
 ### Real-time Updates
-When comments are resolved via CLI or API, the server broadcasts SSE events to connected browsers, triggering automatic page reloads.
+The server uses multiple mechanisms for real-time updates:
+- **SSE (Server-Sent Events)**: Broadcasts events to connected browsers when comments are resolved
+- **File System Watching**: Uses fsnotify to watch Markdown files and automatically reload the browser when files are modified
+- **Event Broadcasting**: CLI commands (like `resolve`) notify the server via HTTP POST to `/api/events`, which triggers SSE broadcasts to connected clients
 
 ### CLI Commands
-- `claude-review server`: Start web server on port 4779
+- `claude-review server`: Start web server on port 4779 in foreground
+- `claude-review server --daemon`: Start web server as a background daemon
+- `claude-review server --stop`: Stop the running daemon
+- `claude-review server --status`: Check if daemon is running and show PID info
+- `claude-review register [--project <path>]`: Register a project directory (defaults to current directory)
 - `claude-review address --file <path>`: Output unresolved comments for file
 - `claude-review resolve --file <path>`: Mark all comments as resolved for file
+
+### Daemon Management
+The server can run as a background daemon:
+- **PID File**: Stored at `$XDG_DATA_HOME/claude-review/server.pid` (defaults to `~/.local/share/claude-review/server.pid`)
+- **Log File**: Daemon logs stored at `$XDG_DATA_HOME/claude-review/server.log`
+- **Signal Handling**: Graceful shutdown on SIGTERM/SIGINT with automatic cleanup of PID file
+- **Double-fork**: Uses Unix double-fork pattern to fully detach from terminal
 
 ## Configuration
 

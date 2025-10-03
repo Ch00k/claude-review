@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 )
@@ -76,6 +77,20 @@ func handleSSE(w http.ResponseWriter, r *http.Request) {
 
 	sseHub.addClient(client)
 	defer sseHub.removeClient(client)
+
+	// Setup file watcher for this file
+	if fileWatcher != nil {
+		if err := fileWatcher.watchFile(projectDir, filePath, func() {
+			sseHub.broadcast(projectDir, filePath, "file_updated", map[string]string{
+				"file_path": filePath,
+			})
+		}); err != nil {
+			log.Printf("Failed to watch file: %v", err)
+		}
+		defer func() {
+			_ = fileWatcher.unwatchFile(projectDir, filePath)
+		}()
+	}
 
 	// Send initial connection message
 	if _, err := fmt.Fprintf(w, "event: connected\ndata: {\"status\":\"ok\"}\n\n"); err != nil {

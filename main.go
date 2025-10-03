@@ -16,10 +16,14 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: claude-review <command>")
 		fmt.Println("\nCommands:")
-		fmt.Println("  server    Start the web server")
-		fmt.Println("  address   Show unresolved comments for a file")
-		fmt.Println("  resolve   Mark all comments for a file as resolved")
-		fmt.Println("  list      List all comments for a file (resolved and unresolved)")
+		fmt.Println("  server            Start the web server")
+		fmt.Println("  server --daemon   Start the web server as a background daemon")
+		fmt.Println("  server --stop     Stop the running daemon")
+		fmt.Println("  server --status   Check if the daemon is running")
+		fmt.Println("  register          Register the current project directory")
+		fmt.Println("  address           Show unresolved comments for a file")
+		fmt.Println("  resolve           Mark all comments for a file as resolved")
+		fmt.Println("  list              List all comments for a file (resolved and unresolved)")
 		os.Exit(1)
 	}
 
@@ -28,6 +32,8 @@ func main() {
 	switch cmd {
 	case "server":
 		runServer()
+	case "register":
+		runRegister()
 	case "address":
 		runAddress()
 	case "resolve":
@@ -39,6 +45,52 @@ func main() {
 }
 
 func runServer() {
+	// Parse server flags
+	serverCmd := flag.NewFlagSet("server", flag.ExitOnError)
+	daemon := serverCmd.Bool("daemon", false, "Run server as a daemon")
+	daemonChild := serverCmd.Bool("daemon-child", false, "Internal flag for daemon child process")
+	stop := serverCmd.Bool("stop", false, "Stop the running daemon")
+	status := serverCmd.Bool("status", false, "Check daemon status")
+
+	if err := serverCmd.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
+
+	// Handle --stop flag
+	if *stop {
+		if err := stopDaemon(); err != nil {
+			log.Fatalf("Failed to stop daemon: %v", err)
+		}
+		return
+	}
+
+	// Handle --status flag
+	if *status {
+		if err := statusDaemon(); err != nil {
+			log.Fatalf("Failed to check status: %v", err)
+		}
+		return
+	}
+
+	// Handle --daemon flag (parent process)
+	if *daemon {
+		if err := daemonize(); err != nil {
+			log.Fatalf("Failed to daemonize: %v", err)
+		}
+		return
+	}
+
+	// Actual server logic (runs in foreground or as daemon child)
+	if *daemonChild {
+		// Setup signal handlers for graceful shutdown
+		setupSignalHandlers()
+
+		// Write PID file
+		if err := writePIDFile(); err != nil {
+			log.Fatalf("Failed to write PID file: %v", err)
+		}
+	}
+
 	// Initialize database
 	if err := initDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
@@ -48,6 +100,14 @@ func runServer() {
 	if err := initTemplates(); err != nil {
 		log.Fatalf("Failed to load templates: %v", err)
 	}
+
+	// Initialize file watcher
+	if err := initFileWatcher(); err != nil {
+		log.Fatalf("Failed to initialize file watcher: %v", err)
+	}
+	defer func() {
+		_ = fileWatcher.close()
+	}()
 
 	// Setup router
 	r := chi.NewRouter()
@@ -59,25 +119,56 @@ func runServer() {
 	r.Get("/projects/*", handleProjectFiles)
 
 	// API Routes
-	r.Post("/api/projects", handleCreateProject)
 	r.Post("/api/comments", handleCreateComment)
-	r.Get("/api/comments", handleGetComments)
 	r.Patch("/api/comments/{id}", handleUpdateComment)
 	r.Delete("/api/comments/{id}", handleDeleteComment)
-	r.Post("/api/comments/resolve", handleResolveComments)
 	r.Get("/api/events", handleSSE)
 	r.Post("/api/events", handleBroadcast)
-	r.Get("/health", handleHealth)
 
 	// Static files
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("frontend/static"))))
 
 	// Start server
 	port := "4779"
-	fmt.Printf("Starting server on http://localhost:%s\n", port)
+	if !*daemonChild {
+		fmt.Printf("Starting server on http://localhost:%s\n", port)
+	}
+	log.Printf("Server listening on port %s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+func runRegister() {
+	// Parse flags
+	registerCmd := flag.NewFlagSet("register", flag.ExitOnError)
+	projectDir := registerCmd.String("project", "", "Project directory (defaults to current directory)")
+
+	if err := registerCmd.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
+
+	// Resolve project directory (default to current directory)
+	if *projectDir == "" || *projectDir == "." {
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatalf("Failed to get current directory: %v", err)
+		}
+		*projectDir = cwd
+	}
+
+	// Initialize database
+	if err := initDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	// Register project
+	_, err := createProject(*projectDir)
+	if err != nil {
+		log.Fatalf("Failed to register project: %v", err)
+	}
+
+	log.Printf("Registered project: %s", *projectDir)
 }
 
 func runAddress() {
@@ -198,5 +289,8 @@ func runResolve() {
 		fmt.Printf("No unresolved comments found for %s\n", *filePath)
 	} else {
 		fmt.Printf("Resolved %d comment(s) for %s\n", count, *filePath)
+
+		// Notify server about resolved comments (if server is running)
+		notifyServerCommentsResolved(*projectDir, *filePath)
 	}
 }

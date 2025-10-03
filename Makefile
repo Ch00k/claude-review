@@ -1,4 +1,4 @@
-.PHONY: lint test test-verbose test-one test-ci air build assets build-release dev release release-patch release-minor release-major install-slash-commands
+.PHONY: lint test test-verbose test-one test-ci air build assets build-release dev release release-patch release-minor release-major install-slash-commands install-hooks install
 
 .EXPORT_ALL_VARIABLES:
 
@@ -61,3 +61,12 @@ release-major:
 install-slash-commands:
 	mkdir -p ~/.claude/commands
 	cp slash-commands/address-comments.md ~/.claude/commands/address-comments.md
+
+install-hooks:
+	@echo "To install the SessionStart hook, add the following to your ~/.claude/settings.json:"
+	@echo ""
+	@cat hooks/session-start.json
+	@echo ""
+	@echo "Or merge it with your existing hooks configuration."
+
+install: install-slash-commands install-hooks
