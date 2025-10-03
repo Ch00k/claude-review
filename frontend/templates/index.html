@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Claude Review - Projects</title>
+        <link rel="stylesheet" href="/static/index.css" />
+    </head>
+    <body>
+        <h1>Claude Review - Projects</h1>
+
+        {{if .Projects}}
+        <ul class="project-list">
+            {{range .Projects}}
+            <li class="project-item">
+                <a href="/projects{{.Directory}}" class="project-link"> {{.Directory | base}} </a>
+                <div class="project-path">{{.Directory}}</div>
+            </li>
+            {{end}}
+        </ul>
+        {{else}}
+        <div class="no-projects">
+            <p>No projects registered yet.</p>
+            <p>Start Claude Code in a project directory to automatically register it.</p>
+        </div>
+        {{end}}
+    </body>
+</html>

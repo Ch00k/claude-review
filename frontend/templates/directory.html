@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{if .ChildPath}}{{.ChildPath}}{{else}}{{.ProjectDir | base}}{{end}} - Claude Review</title>
+        <link rel="stylesheet" href="/static/directory.css" />
+    </head>
+    <body>
+        <div class="breadcrumb">
+            <a href="/">Home</a>
+            <span class="breadcrumb-separator">›</span>
+            <a href="/projects{{.ProjectDir}}">{{.ProjectDir | base}}</a>
+            {{if .ChildPath}}
+            <span class="breadcrumb-separator">›</span>
+            <span>{{.ChildPath}}</span>
+            {{end}}
+        </div>
+
+        <h1>{{if .ChildPath}}{{.ChildPath}}{{else}}{{.ProjectDir | base}}{{end}}</h1>
+
+        {{if .Entries}}
+        <ul class="entry-list">
+            {{range .Entries}}
+            <li class="entry-item">
+                <a href="/projects{{$.ProjectDir}}/{{.Path}}" class="entry-link"> {{.Name}}{{if .IsDir}}/{{end}} </a>
+            </li>
+            {{end}}
+        </ul>
+        {{else}}
+        <p class="no-content">No markdown files or directories found.</p>
+        {{end}}
+    </body>
+</html>

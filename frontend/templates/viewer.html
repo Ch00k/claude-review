@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{.FilePath}} - Claude Review</title>
+        <link rel="stylesheet" href="/static/viewer.css" />
+    </head>
+    <body>
+        <div class="breadcrumb">
+            <a href="/">Home</a>
+            <span class="breadcrumb-separator">›</span>
+            <a href="/projects{{.ProjectDir}}">{{.ProjectDir | base}}</a>
+            <span class="breadcrumb-separator">›</span>
+            <span>{{.FilePath}}</span>
+        </div>
+
+        <div id="markdown-content">{{.HTMLContent}}</div>
+
+        <script>
+            // Template variables from Go backend
+            const projectDir = {{.ProjectDir}};
+            const filePath = {{.FilePath}};
+            const comments = {{.Comments}};
+        </script>
+
+        <!-- Application logic -->
+        <script src="/static/viewer.js"></script>
+    </body>
+</html>
