@@ -8,9 +8,11 @@ CR_WEB_ASSETS_FILENAME ?= frontend-assets.tar.gz
 CR_BUILD_ARTIFACTS_DIR ?= dist
 
 
-lint:
-	golangci-lint run --fix
+prettier:
 	prettier --write frontend/
+
+lint: prettier
+	golangci-lint run --fix
 
 test:
 	gotestsum --format testname ./...

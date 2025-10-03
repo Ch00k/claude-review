@@ -129,7 +129,12 @@ func (r *CodeBlockRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegistere
 	reg.Register(ast.KindCodeBlock, r.renderCodeBlock)
 }
 
-func (r *CodeBlockRenderer) renderCodeBlock(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+func (r *CodeBlockRenderer) renderCodeBlock(
+	w util.BufWriter,
+	source []byte,
+	node ast.Node,
+	entering bool,
+) (ast.WalkStatus, error) {
 	if entering {
 		// Write <pre> with data-line attributes
 		_, _ = w.WriteString("<pre")

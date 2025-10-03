@@ -1,0 +1,17 @@
+version: "2"
+linters:
+  settings:
+    staticcheck:
+      checks:
+        - all
+  exclusions:
+    paths:
+      - ui/components
+      - ui/utils/templui.go
+formatters:
+  enable:
+    - golines
+  settings:
+    golines:
+      max-len: 120
+      tab-len: 4

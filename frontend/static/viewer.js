@@ -130,7 +130,7 @@
         commentButton.style.left = x + 'px';
         // Offset by button height to align bottom of button with top of selection
         const buttonHeight = 40; // 32px icon + 2*4px padding
-        commentButton.style.top = (y - buttonHeight) + 'px';
+        commentButton.style.top = y - buttonHeight + 'px';
     }
 
     function hideCommentButton() {

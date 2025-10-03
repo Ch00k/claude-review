@@ -51,7 +51,7 @@ func initDB() error {
 
 	// Create claude-review directory
 	dbDir := filepath.Join(dataHome, "claude-review")
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 
@@ -161,31 +161,6 @@ func getComments(projectDir, filePath string, resolved bool) ([]Comment, error) 
 		ORDER BY line_start ASC`
 	logQuery(query, projectDir, filePath, resolved)
 	rows, err := db.Query(query, projectDir, filePath, resolved)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	var comments []Comment
-	for rows.Next() {
-		var c Comment
-		if err := rows.Scan(&c.ID, &c.ProjectDirectory, &c.FilePath, &c.LineStart, &c.LineEnd, &c.SelectedText, &c.CommentText, &c.Resolved, &c.CreatedAt); err != nil {
-			return nil, err
-		}
-		comments = append(comments, c)
-	}
-
-	return comments, nil
-}
-
-func getAllCommentsForFile(projectDir, filePath string) ([]Comment, error) {
-	query := `
-		SELECT id, project_directory, file_path, line_start, line_end, selected_text, comment_text, resolved, created_at
-		FROM comments
-		WHERE project_directory = ? AND file_path = ?
-		ORDER BY resolved ASC, line_start ASC`
-	logQuery(query, projectDir, filePath)
-	rows, err := db.Query(query, projectDir, filePath)
 	if err != nil {
 		return nil, err
 	}

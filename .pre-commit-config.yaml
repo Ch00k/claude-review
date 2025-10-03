@@ -1,0 +1,19 @@
+repos:
+  - repo: https://github.com/tekwizely/pre-commit-golang
+    rev: v1.0.0-rc.2
+    hooks:
+      - id: go-mod-tidy
+
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.5.0
+    hooks:
+      - id: golangci-lint-full
+
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: make prettier
+        verbose: true
+        language: system
+        types: [css, javascript, html]
