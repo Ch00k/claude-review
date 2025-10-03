@@ -81,13 +81,13 @@ if [ -z "$ASSETS_URL" ]; then
     exit 1
 fi
 
-# Check daemon status before upgrade
-DAEMON_WAS_RUNNING=false
+# Check server status before upgrade
+SERVER_WAS_RUNNING=false
 if [ "$UPGRADE_MODE" = true ]; then
-    echo "Checking if daemon is running..."
+    echo "Checking if server is running..."
     if "$INSTALL_DIR/claude-review" server --status >/dev/null 2>&1; then
-        DAEMON_WAS_RUNNING=true
-        echo "Stopping claude-review daemon for upgrade..."
+        SERVER_WAS_RUNNING=true
+        echo "Stopping claude-review server for upgrade..."
         "$INSTALL_DIR/claude-review" server --stop || true
         sleep 1
     fi
@@ -131,103 +131,42 @@ HOOK_CONFIG_FILE="$DATA_DIR/hooks/session-start.json"
 # Save version file
 echo "$LATEST_VERSION" >"$VERSION_FILE"
 
-# Restart daemon if it was running before upgrade
-if [ "$DAEMON_WAS_RUNNING" = true ]; then
-    echo "Restarting daemon..."
+# Restart server if it was running before upgrade
+if [ "$SERVER_WAS_RUNNING" = true ]; then
+    echo "Restarting server..."
     "$INSTALL_DIR/claude-review" server --daemon
     sleep 1
     if "$INSTALL_DIR/claude-review" server --status >/dev/null 2>&1; then
-        echo "Daemon restarted successfully"
+        echo "Server restarted successfully"
     else
-        echo "Warning: Failed to restart daemon"
+        echo "Warning: Failed to restart server"
     fi
 fi
 
 # Show completion message
 echo
 if [ "$UPGRADE_MODE" = true ]; then
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "UPGRADE COMPLETE"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo
-    echo "claude-review upgraded from $CURRENT_VERSION to $LATEST_VERSION"
+    echo "claude-review upgraded: $CURRENT_VERSION → $LATEST_VERSION"
 else
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "INSTALLATION COMPLETE"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo
-    echo "claude-review $LATEST_VERSION is now installed."
+    echo "claude-review $LATEST_VERSION installed successfully"
 fi
 echo
 
 # Check if PATH includes install directory
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-    echo "⚠️  WARNING: $INSTALL_DIR is not in your PATH"
-    echo
-    echo "Add this to your shell configuration file (~/.bashrc, ~/.zshrc, etc.):"
+    echo "add to your PATH (~/.bashrc or ~/.zshrc):"
     # shellcheck disable=SC2016
-    echo '  export PATH=$PATH:'"$INSTALL_DIR"
-    echo
-    echo "Then reload your shell or run:"
-    # shellcheck disable=SC2016
-    echo '  source ~/.bashrc  # or ~/.zshrc'
+    echo '   export PATH=$PATH:'"$INSTALL_DIR"
     echo
 fi
 
-# Show hook installation instructions
+# Quick start
+echo "Quick Start:"
 if [ -f "$HOOK_CONFIG_FILE" ]; then
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Setup Claude Code Hook (Required)"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo
-    echo "Add the following configuration to your $CLAUDE_SETTINGS"
-    echo
-    echo "If the file doesn't exist, create it with this content:"
-    echo
-    cat "$HOOK_CONFIG_FILE"
-    echo
-    echo "If the file already exists, merge the 'hooks' section with your existing configuration."
-    echo
-    echo "This hook will automatically start the claude-review daemon and register"
-    echo "your project when you start a Claude Code session."
-    echo
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo
+    echo "  1. Setup hook: merge contents of $HOOK_CONFIG_FILE into $CLAUDE_SETTINGS"
 fi
-
-# Instructions for getting started
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "GETTING STARTED"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo
-echo "1. Start a Claude Code session in your project directory"
-echo "   (The hook will automatically start the server and register the project)"
-echo
-echo "2. Ask Claude to create a planning document (e.g., PLAN.md)"
-echo
-echo "3. Open the web interface in your browser:"
-echo "   http://localhost:4779"
-echo
-echo "4. Select your project and the Markdown file Claude generated"
-echo
-echo "5. Highlight text and add comments on the rendered Markdown"
-echo
-echo "6. In Claude Code, run the slash command to address your comments:"
-echo "   /address-comments PLAN.md"
-echo
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo
-
-# Show useful commands
-echo "Useful commands:"
-echo "  claude-review server --status  Check if daemon is running"
-echo "  claude-review server --daemon  Start the daemon manually"
-echo "  claude-review server --stop    Stop the daemon"
-echo "  claude-review register         Register current directory as project"
-echo
-echo "Installation paths:"
-echo "  Binary:         $INSTALL_DIR/claude-review"
-echo "  Data directory: $DATA_DIR"
-echo "  Slash commands: $CLAUDE_COMMANDS_DIR"
-echo "  Hook config:    $HOOK_CONFIG_FILE"
+echo "  2. Restart Claude Code (hook will start server automatically)"
+echo "  3. Ask Claude Code to create a plan in PLAN.md"
+echo "  4. Open http://localhost:4779, select project and PLAN.md file, add comments"
+echo "  5. Run '/address-comments PLAN.md' in Claude Code"
 echo
