@@ -32,7 +32,7 @@ claude-review is a lightweight companion for working on planning documents with 
 - **viewer.js**: Handles text selection, comment creation/editing, SSE connection for live updates
 
 ### Database Schema
-SQLite database stored at `$XDG_DATA_HOME/claude-review/comments.db` (defaults to `~/.local/share/claude-review/comments.db`):
+SQLite database stored at `~/.local/share/claude-review/comments.db`:
 - **projects**: Tracks registered project directories
 - **comments**: Stores inline comments with line ranges, selected text, resolved status
 
@@ -97,8 +97,8 @@ The server uses multiple mechanisms for real-time updates:
 
 ### Daemon Management
 The server can run as a background daemon:
-- **PID File**: Stored at `$XDG_DATA_HOME/claude-review/server.pid` (defaults to `~/.local/share/claude-review/server.pid`)
-- **Log File**: Daemon logs stored at `$XDG_DATA_HOME/claude-review/server.log`
+- **PID File**: Stored at `~/.local/share/claude-review/server.pid`
+- **Log File**: Daemon logs stored at `~/.local/share/claude-review/server.log`
 - **Signal Handling**: Graceful shutdown on SIGTERM/SIGINT with automatic cleanup of PID file
 - **Double-fork**: Uses Unix double-fork pattern to fully detach from terminal
 

@@ -5,7 +5,7 @@ set -e
 UPGRADE_MODE=false
 CURRENT_VERSION="unknown"
 INSTALL_DIR="$HOME/.local/bin"
-DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/claude-review"
+DATA_DIR="$HOME/.local/share/claude-review"
 CLAUDE_COMMANDS_DIR="$HOME/.claude/commands"
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 VERSION_FILE="$DATA_DIR/VERSION"

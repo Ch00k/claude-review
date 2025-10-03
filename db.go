@@ -40,15 +40,11 @@ var db *sql.DB
 
 // getDataDir returns the data directory for claude-review
 func getDataDir() (string, error) {
-	dataHome := os.Getenv("XDG_DATA_HOME")
-	if dataHome == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to get user home directory: %w", err)
-		}
-		dataHome = filepath.Join(homeDir, ".local", "share")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %w", err)
 	}
-	return filepath.Join(dataHome, "claude-review"), nil
+	return filepath.Join(homeDir, ".local", "share", "claude-review"), nil
 }
 
 func initDB() error {
