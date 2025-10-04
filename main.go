@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
@@ -241,8 +240,8 @@ func runReview() {
 	reviewURL := fmt.Sprintf(
 		"http://localhost:%s/projects%s/%s",
 		port,
-		url.PathEscape(*projectDir),
-		url.PathEscape(*filePath),
+		escapePathComponents(*projectDir),
+		escapePathComponents(*filePath),
 	)
 	fmt.Printf("Open this URL in your browser to start reviewing %s:\n\n%s\n", *filePath, reviewURL)
 }
