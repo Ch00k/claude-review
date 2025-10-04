@@ -10,7 +10,7 @@
         <div class="breadcrumb">
             <a href="/">Home</a>
             <span class="breadcrumb-separator">›</span>
-            <a href="/projects{{.ProjectDir}}">{{.ProjectDir | base}}</a>
+            <a href="/projects{{.ProjectDir | pathescape}}">{{.ProjectDir | base}}</a>
             <span class="breadcrumb-separator">›</span>
             <span>{{.FilePath}}</span>
         </div>

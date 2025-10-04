@@ -36,8 +36,7 @@ curl -fsSL https://github.com/Ch00k/claude-review/releases/latest/download/insta
 
 The installer will:
 - Download and install the `claude-review` binary to `~/.local/bin/`
-- Install the `/address-comments` slash command to `~/.claude/commands/`
-- Display instructions for setting up the Claude Code hook
+- Install the `/cr-review` and `/cr-address` slash commands to `~/.claude/commands/`
 
 ### Manual
 
@@ -47,13 +46,9 @@ The installer will:
    chmod +x claude-review-<os>-<arch>
    mv claude-review-<os>-<arch> ~/.local/bin/claude-review
    ```
-3. Install the slash command:
+3. Install the slash commands:
    ```bash
-   claude-review install --slash-command
-   ```
-4. Install the Claude Code hook:
-   ```bash
-   claude-review install --hook
+   claude-review install
    ```
 
 Make sure `~/.local/bin` is in your `PATH`. If not:
@@ -62,23 +57,20 @@ export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## How it fits into your workflow
-1. Start Claude Code in the directory of your project (the hook automatically starts the server and registers the
-   project)
-2. Ask Claude Code to produce a plan (for example `PLAN.md`)
-3. Open http://localhost:4779 in your browser, select your project and the `PLAN.md` Markdown file that Claude Code
-   produced
-4. Highlight portions of the document and add contextual comments
-5. Run `/address-comments PLAN.md` in your Claude Code session to pull the pending comments, apply edits, and resolve
-   them
-6. Watch the plan automatically reload in your browser, repeating the cycle until the document matches your intent
+1. Ask Claude Code to create a Markdown document (e.g. `PLAN.md`)
+2. Run `/cr-review PLAN.md` in Claude Code and open the URL it returns
+3. Highlight portions of the document and add contextual comments
+4. Run `/cr-address PLAN.md` in your Claude Code session to get your comments addressed (the HTML page will refresh
+   automatically)
+5. Repeat steps 3-4 until the document matches your intent
 
-## Example
+<!--## Example-->
 
-### Ask Claude Code to create a plan
-![Create a plan](screenshots/create.png)
+<!--### Ask Claude Code to create a plan-->
+<!--![Create a plan](screenshots/create.png)-->
 
-### Review the plan in a browser
-![Review in browser](screenshots/review.png)
+<!--### Review the plan in a browser-->
+<!--![Review in browser](screenshots/review.png)-->
 
-### Ask Claude Code to address your review comments
-![Address comments](screenshots/address.png)
+<!--### Ask Claude Code to address your review comments-->
+<!--![Address comments](screenshots/address.png)-->

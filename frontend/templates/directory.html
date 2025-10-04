@@ -10,7 +10,7 @@
         <div class="breadcrumb">
             <a href="/">Home</a>
             <span class="breadcrumb-separator">›</span>
-            <a href="/projects{{.ProjectDir}}">{{.ProjectDir | base}}</a>
+            <a href="/projects{{.ProjectDir | pathescape}}">{{.ProjectDir | base}}</a>
             {{if .ChildPath}}
             <span class="breadcrumb-separator">›</span>
             <span>{{.ChildPath}}</span>
@@ -23,7 +23,9 @@
         <ul class="entry-list">
             {{range .Entries}}
             <li class="entry-item">
-                <a href="/projects{{$.ProjectDir}}/{{.Path}}" class="entry-link"> {{.Name}}{{if .IsDir}}/{{end}} </a>
+                <a href="/projects{{$.ProjectDir | pathescape}}/{{.Path | pathescape}}" class="entry-link">
+                    {{.Name}}{{if .IsDir}}/{{end}}
+                </a>
             </li>
             {{end}}
         </ul>

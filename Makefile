@@ -55,10 +55,5 @@ release-minor:
 release-major:
 	./release.sh major
 
-install-slash-commands:
-	./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} install --slash-command
-
-install-hooks:
-	./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} install --hook
-
-install: build install-slash-commands install-hooks
+install: build
+	./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} install
