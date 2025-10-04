@@ -15,10 +15,21 @@ import (
 
 var templates *template.Template
 
+// escapePathComponents escapes each component of a path individually,
+// preserving the forward slashes between components.
+func escapePathComponents(path string) string {
+	parts := strings.Split(path, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return strings.Join(parts, "/")
+}
+
 func initTemplates() error {
 	funcMap := template.FuncMap{
-		"urlquery": url.QueryEscape,
-		"base":     filepath.Base,
+		"urlquery":   url.QueryEscape,
+		"pathescape": escapePathComponents,
+		"base":       filepath.Base,
 	}
 
 	// Parse templates from embedded FS

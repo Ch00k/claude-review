@@ -13,7 +13,7 @@
         <ul class="project-list">
             {{range .Projects}}
             <li class="project-item">
-                <a href="/projects{{.Directory}}" class="project-link"> {{.Directory | base}} </a>
+                <a href="/projects{{.Directory | pathescape}}" class="project-link"> {{.Directory | base}} </a>
                 <div class="project-path">{{.Directory}}</div>
             </li>
             {{end}}

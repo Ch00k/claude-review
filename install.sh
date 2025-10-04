@@ -92,9 +92,9 @@ echo "Installing claude-review binary..."
 curl -sSL "$BINARY_URL" -o "$BIN_DIR/claude-review"
 chmod +x "$BIN_DIR/claude-review"
 
-# Install slash command using the binary
-echo "Installing slash command..."
-"$BIN_DIR/claude-review" install --slash-command
+# Install slash commands using the binary
+echo "Installing slash commands..."
+"$BIN_DIR/claude-review" install
 
 # Restart server if it was running before upgrade
 if [ "$SERVER_WAS_RUNNING" = true ]; then
@@ -125,11 +125,10 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     echo
 fi
 
-# Show hook installation instructions
+# Show usage instructions
 echo "Next Steps:"
-echo "  1. Install the session-start hook by running 'claude-review install --hook'"
-echo "  2. Restart Claude Code (hook will start the server automatically)"
-echo "  3. Ask Claude Code to create a plan in PLAN.md"
-echo "  4. Open http://localhost:4779, select project and PLAN.md file, add comments"
-echo "  5. Run '/address-comments PLAN.md' in Claude Code"
+echo "  1. Ask Claude Code to create a plan in PLAN.md"
+echo "  2. Run '/cr-review PLAN.md' in Claude Code to get a URL"
+echo "  3. Open the URL in your browser and add comments"
+echo "  4. Run '/cr-address PLAN.md' to get your comments addressed"
 echo

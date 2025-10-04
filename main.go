@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -22,10 +23,10 @@ func main() {
 		fmt.Println("  server --stop            Stop the running daemon")
 		fmt.Println("  server --status          Check if the daemon is running")
 		fmt.Println("  register                 Register the current project directory")
+		fmt.Println("  review                   Start server, register project, and show file URL")
 		fmt.Println("  address                  Show unresolved comments for a file")
 		fmt.Println("  resolve                  Mark all comments for a file as resolved")
-		fmt.Println("  install --hook           Display instructions to install the session-start hook")
-		fmt.Println("  install --slash-command  Install the /address-comments slash command")
+		fmt.Println("  install                  Install slash commands")
 		fmt.Println("  version                  Show version information")
 		os.Exit(1)
 	}
@@ -37,6 +38,8 @@ func main() {
 		runServer()
 	case "register":
 		runRegister()
+	case "review":
+		runReview()
 	case "address":
 		runAddress()
 	case "resolve":
@@ -185,6 +188,65 @@ func runRegister() {
 	log.Printf("Registered project: %s", *projectDir)
 }
 
+func runReview() {
+	// Parse flags
+	reviewCmd := flag.NewFlagSet("review", flag.ExitOnError)
+	projectDir := reviewCmd.String("project", "", "Project directory (defaults to current directory)")
+	filePath := reviewCmd.String("file", "", "File path relative to project directory")
+
+	if err := reviewCmd.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
+
+	// Resolve project directory (default to current directory)
+	if *projectDir == "" || *projectDir == "." {
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatalf("Failed to get current directory: %v", err)
+		}
+		*projectDir = cwd
+	}
+
+	if *filePath == "" {
+		fmt.Println("Error: --file flag is required")
+		os.Exit(1)
+	}
+
+	// Remove @ prefix if present
+	*filePath = strings.TrimPrefix(*filePath, "@")
+
+	// Step 1: Start daemon if not running
+	if !isServerRunning() {
+		if err := daemonize(); err != nil {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}
+
+	// Step 2: Initialize database and register project
+	if err := initDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	_, err := createProject(*projectDir)
+	if err != nil {
+		log.Fatalf("Failed to register project: %v", err)
+	}
+
+	// Step 3: Output URL
+	port := os.Getenv("CR_LISTEN_PORT")
+	if port == "" {
+		port = "4779"
+	}
+
+	reviewURL := fmt.Sprintf(
+		"http://localhost:%s/projects%s/%s",
+		port,
+		url.PathEscape(*projectDir),
+		url.PathEscape(*filePath),
+	)
+	fmt.Printf("Open this URL in your browser to start reviewing %s:\n\n%s\n", *filePath, reviewURL)
+}
+
 func runAddress() {
 	// Parse flags
 	reviewCmd := flag.NewFlagSet("address", flag.ExitOnError)
@@ -310,36 +372,8 @@ func runResolve() {
 }
 
 func runInstall() {
-	// Parse flags
-	installCmd := flag.NewFlagSet("install", flag.ExitOnError)
-	hook := installCmd.Bool("hook", false, "Install session-start hook")
-	slashCommand := installCmd.Bool("slash-command", false, "Install /address-comments slash command")
-
-	if err := installCmd.Parse(os.Args[2:]); err != nil {
-		log.Fatalf("Failed to parse flags: %v", err)
-	}
-
-	// Check that at least one flag is specified
-	if !*hook && !*slashCommand {
-		fmt.Println("Error: Please specify either --hook or --slash-command")
-		fmt.Println("\nUsage:")
-		fmt.Println("  claude-review install --hook              Display instructions to install the hook")
-		fmt.Println("  claude-review install --slash-command     Install the /address-comments command")
-		os.Exit(1)
-	}
-
-	// Install hook
-	if *hook {
-		if err := installHook(); err != nil {
-			log.Fatalf("Failed to install hook: %v", err)
-		}
-	}
-
-	// Install slash command
-	if *slashCommand {
-		if err := installSlashCommand(); err != nil {
-			log.Fatalf("Failed to install slash command: %v", err)
-		}
+	if err := installSlashCommands(); err != nil {
+		log.Fatalf("Failed to install slash commands: %v", err)
 	}
 }
 
