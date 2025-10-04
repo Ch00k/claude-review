@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -126,7 +127,8 @@ func runServer() {
 	r.Post("/api/events", handleBroadcast)
 
 	// Static files
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("frontend/static"))))
+	staticDir := filepath.Join(assetsDir, "static")
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 
 	// Start server
 	port := os.Getenv("CR_LISTEN_PORT")
