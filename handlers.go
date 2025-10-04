@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"html/template"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,56 +14,20 @@ import (
 )
 
 var templates *template.Template
-var assetsDir string
-
-func findAssetsDir() (string, error) {
-	// Check multiple locations in priority order:
-	// 1. ./frontend (development)
-	// 2. <executable-dir>/frontend (if bundled with executable)
-	// 3. <data-dir>/frontend (production install via make install)
-
-	candidates := []string{
-		"./frontend",
-	}
-
-	// Add executable directory
-	if exePath, err := os.Executable(); err == nil {
-		exeDir := filepath.Dir(exePath)
-		candidates = append(candidates, filepath.Join(exeDir, "frontend"))
-	}
-
-	// Add data directory
-	if dataDir, err := getDataDir(); err == nil {
-		candidates = append(candidates, filepath.Join(dataDir, "frontend"))
-	}
-
-	for _, path := range candidates {
-		if info, err := os.Stat(path); err == nil && info.IsDir() {
-			// Verify it has the expected structure (templates directory exists)
-			templatesPath := filepath.Join(path, "templates")
-			if _, err := os.Stat(templatesPath); err == nil {
-				return path, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("frontend assets not found; searched: %v", candidates)
-}
 
 func initTemplates() error {
-	var err error
-	assetsDir, err = findAssetsDir()
-	if err != nil {
-		return err
-	}
-
 	funcMap := template.FuncMap{
 		"urlquery": url.QueryEscape,
 		"base":     filepath.Base,
 	}
 
-	templatesPath := filepath.Join(assetsDir, "templates", "*.html")
-	templates, err = template.New("").Funcs(funcMap).ParseGlob(templatesPath)
+	// Parse templates from embedded FS
+	templatesSubFS, err := fs.Sub(templatesFS, "frontend/templates")
+	if err != nil {
+		return err
+	}
+
+	templates, err = template.New("").Funcs(funcMap).ParseFS(templatesSubFS, "*.html")
 	return err
 }
 

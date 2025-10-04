@@ -93,6 +93,12 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Install dependencies (Linux)
         if: matrix.goos == 'linux'
         run: |
@@ -105,17 +111,13 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CC: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || 'gcc' }}
           CR_EXECUTABLE_FILENAME: claude-review-${{ matrix.goos }}-${{ matrix.goarch }}
+          CR_VERSION: ${{ steps.version.outputs.version }}
         run: make build
-
-      - name: Build assets
-        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        run: make assets
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             ./dist/claude-review-${{ matrix.goos }}-${{ matrix.goarch }}
-            ${{ matrix.goos == 'linux' && matrix.goarch == 'amd64' && './dist/assets.tar.gz' || '' }}
             ${{ matrix.goos == 'linux' && matrix.goarch == 'amd64' && './install.sh' || '' }}
           generate_release_notes: true

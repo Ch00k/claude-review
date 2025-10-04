@@ -38,28 +38,34 @@ type Comment struct {
 
 var db *sql.DB
 
-// getDataDir returns the data directory for claude-review
+// getDataDir returns the data directory for claude-review and ensures it exists
 func getDataDir() (string, error) {
+	var dataDir string
+
 	// Check for CR_DATA_DIR environment variable first
-	if dataDir := os.Getenv("CR_DATA_DIR"); dataDir != "" {
-		return dataDir, nil
+	if envDataDir := os.Getenv("CR_DATA_DIR"); envDataDir != "" {
+		dataDir = envDataDir
+	} else {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get user home directory: %w", err)
+		}
+		dataDir = filepath.Join(homeDir, ".local", "share", "claude-review")
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user home directory: %w", err)
+	// Ensure the directory exists
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create data directory: %w", err)
 	}
-	return filepath.Join(homeDir, ".local", "share", "claude-review"), nil
+
+	return dataDir, nil
 }
 
 func initDB() error {
-	// Create claude-review directory
+	// Get data directory (ensures it exists)
 	dbDir, err := getDataDir()
 	if err != nil {
 		return err
-	}
-	if err := os.MkdirAll(dbDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 
 	// Open database

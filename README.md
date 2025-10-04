@@ -28,17 +28,38 @@ specific sections, and the feedback loop happens in seconds rather than minutes.
 
 ## Installation
 
+### Automated (recommended)
+
 ```bash
 curl -fsSL https://github.com/Ch00k/claude-review/releases/latest/download/install.sh | bash
 ```
 
 The installer will:
 - Download and install the `claude-review` binary to `~/.local/bin/`
-- Extract assets (frontend, Claude Code slash-commands and hooks) to `~/.local/share/claude-review/`
 - Install the `/address-comments` slash command to `~/.claude/commands/`
 - Display instructions for setting up the Claude Code hook
 
-After installation, follow the displayed instructions to add the hook configuration to `~/.claude/settings.json`.
+### Manual
+
+1. Download the binary for your platform from the [latest release](https://github.com/Ch00k/claude-review/releases/latest)
+2. Make it executable and move it to your PATH:
+   ```bash
+   chmod +x claude-review-<os>-<arch>
+   mv claude-review-<os>-<arch> ~/.local/bin/claude-review
+   ```
+3. Install the slash command:
+   ```bash
+   claude-review install --slash-command
+   ```
+4. Install the Claude Code hook:
+   ```bash
+   claude-review install --hook
+   ```
+
+Make sure `~/.local/bin` is in your `PATH`. If not:
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
 
 ## How it fits into your workflow
 1. Start Claude Code in the directory of your project (the hook automatically starts the server and registers the
