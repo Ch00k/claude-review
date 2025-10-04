@@ -9,4 +9,4 @@ require (
 	github.com/yuin/goldmark v1.7.13
 )
 
-require golang.org/x/sys v0.13.0 // indirect
+require golang.org/x/sys v0.30.0 // indirect

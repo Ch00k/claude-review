@@ -1,11 +1,11 @@
-.PHONY: lint test test-verbose test-one test-ci air build assets build-release dev release release-patch release-minor release-major install-slash-commands install-hooks install
+.PHONY: lint test test-verbose test-one test-ci air build build-release dev release release-patch release-minor release-major install-slash-commands install-hooks install
 
 .EXPORT_ALL_VARIABLES:
 
 CGO_ENABLED = 1
 CR_EXECUTABLE_FILENAME ?= claude-review
-CR_ASSETS_FILENAME ?= assets.tar.gz
 CR_BUILD_ARTIFACTS_DIR ?= dist
+CR_VERSION ?= dev
 
 
 prettier:
@@ -34,12 +34,9 @@ air:
 	air -c .air.toml
 
 build:
-	go build -o ./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} .
+	go build -ldflags="-s -w -X main.Version=${CR_VERSION}" -o ./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} .
 
-assets:
-	tar -czf ./${CR_BUILD_ARTIFACTS_DIR}/${CR_ASSETS_FILENAME} frontend/ slash-commands/ hooks/
-
-build-release: build assets
+build-release: build
 
 dev: air
 
@@ -59,14 +56,9 @@ release-major:
 	./release.sh major
 
 install-slash-commands:
-	mkdir -p ~/.claude/commands
-	cp slash-commands/address-comments.md ~/.claude/commands/address-comments.md
+	./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} install --slash-command
 
 install-hooks:
-	@echo "To install the SessionStart hook, add the following to your ~/.claude/settings.json:"
-	@echo ""
-	@cat hooks/session-start.json
-	@echo ""
-	@echo "Or merge it with your existing hooks configuration."
+	./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} install --hook
 
-install: install-slash-commands install-hooks
+install: build install-slash-commands install-hooks

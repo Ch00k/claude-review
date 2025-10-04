@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -17,14 +17,16 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: claude-review <command>")
 		fmt.Println("\nCommands:")
-		fmt.Println("  server            Start the web server")
-		fmt.Println("  server --daemon   Start the web server as a background daemon")
-		fmt.Println("  server --stop     Stop the running daemon")
-		fmt.Println("  server --status   Check if the daemon is running")
-		fmt.Println("  register          Register the current project directory")
-		fmt.Println("  address           Show unresolved comments for a file")
-		fmt.Println("  resolve           Mark all comments for a file as resolved")
-		fmt.Println("  list              List all comments for a file (resolved and unresolved)")
+		fmt.Println("  server                   Start the web server")
+		fmt.Println("  server --daemon          Start the web server as a background daemon")
+		fmt.Println("  server --stop            Stop the running daemon")
+		fmt.Println("  server --status          Check if the daemon is running")
+		fmt.Println("  register                 Register the current project directory")
+		fmt.Println("  address                  Show unresolved comments for a file")
+		fmt.Println("  resolve                  Mark all comments for a file as resolved")
+		fmt.Println("  install --hook           Display instructions to install the session-start hook")
+		fmt.Println("  install --slash-command  Install the /address-comments slash command")
+		fmt.Println("  version                  Show version information")
 		os.Exit(1)
 	}
 
@@ -39,6 +41,10 @@ func main() {
 		runAddress()
 	case "resolve":
 		runResolve()
+	case "install":
+		runInstall()
+	case "version":
+		runVersion()
 	default:
 		fmt.Printf("Unknown command: %s\n", cmd)
 		os.Exit(1)
@@ -126,9 +132,12 @@ func runServer() {
 	r.Get("/api/events", handleSSE)
 	r.Post("/api/events", handleBroadcast)
 
-	// Static files
-	staticDir := filepath.Join(assetsDir, "static")
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
+	// Static files from embedded FS
+	staticSubFS, err := fs.Sub(staticFS, "frontend/static")
+	if err != nil {
+		log.Fatalf("Failed to create static sub-filesystem: %v", err)
+	}
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticSubFS))))
 
 	// Start server
 	port := os.Getenv("CR_LISTEN_PORT")
@@ -298,4 +307,42 @@ func runResolve() {
 		// Notify server about resolved comments (if server is running)
 		notifyServerCommentsResolved(*projectDir, *filePath)
 	}
+}
+
+func runInstall() {
+	// Parse flags
+	installCmd := flag.NewFlagSet("install", flag.ExitOnError)
+	hook := installCmd.Bool("hook", false, "Install session-start hook")
+	slashCommand := installCmd.Bool("slash-command", false, "Install /address-comments slash command")
+
+	if err := installCmd.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
+
+	// Check that at least one flag is specified
+	if !*hook && !*slashCommand {
+		fmt.Println("Error: Please specify either --hook or --slash-command")
+		fmt.Println("\nUsage:")
+		fmt.Println("  claude-review install --hook              Display instructions to install the hook")
+		fmt.Println("  claude-review install --slash-command     Install the /address-comments command")
+		os.Exit(1)
+	}
+
+	// Install hook
+	if *hook {
+		if err := installHook(); err != nil {
+			log.Fatalf("Failed to install hook: %v", err)
+		}
+	}
+
+	// Install slash command
+	if *slashCommand {
+		if err := installSlashCommand(); err != nil {
+			log.Fatalf("Failed to install slash command: %v", err)
+		}
+	}
+}
+
+func runVersion() {
+	fmt.Println(Version)
 }
