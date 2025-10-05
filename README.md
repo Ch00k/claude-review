@@ -66,13 +66,4 @@ export PATH="$HOME/.local/bin:$PATH"
    automatically)
 5. Repeat steps 3-4 until the document matches your intent
 
-<!--## Example-->
-
-<!--### Ask Claude Code to create a plan-->
-<!--![Create a plan](screenshots/create.png)-->
-
-<!--### Review the plan in a browser-->
-<!--![Review in browser](screenshots/review.png)-->
-
-<!--### Ask Claude Code to address your review comments-->
-<!--![Address comments](screenshots/address.png)-->
+See [EXAMPLE](EXAMPLE.md) for a visual walkthrough of the workflow.
