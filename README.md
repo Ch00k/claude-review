@@ -4,6 +4,8 @@ claude-review is a lightweight companion for working on planning documents with 
 Markdown plan in the browser, leave inline comments, and hand those comments back to the same Claude Code session that
 created the plan.
 
+For a detailed overview of the architecture, see [ARCHITECTURE](ARCHITECTURE.md).
+
 ## Motivation
 
 When working with Claude Code to generate planning documents in Markdown format, the typical workflow involves switching
