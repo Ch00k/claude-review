@@ -150,7 +150,7 @@ func runServer() {
 		fmt.Printf("Starting server on http://localhost:%s\n", port)
 	}
 	log.Printf("Server listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	if err := http.ListenAndServe("127.0.0.1:"+port, r); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
