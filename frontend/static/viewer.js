@@ -185,13 +185,26 @@
 
             const item = document.createElement('div');
             item.className = 'comment-panel-item';
-            item.innerHTML = `
-                <div class="comment-panel-item-number">${lineRange}</div>
-                <div class="comment-panel-item-content">
-                    <div class="comment-panel-item-text">"${selectedText}"</div>
-                    <div class="comment-panel-item-comment">${commentText}</div>
-                </div>
-            `;
+
+            const numberDiv = document.createElement('div');
+            numberDiv.className = 'comment-panel-item-number';
+            numberDiv.textContent = lineRange;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'comment-panel-item-content';
+
+            const textDiv = document.createElement('div');
+            textDiv.className = 'comment-panel-item-text';
+            textDiv.textContent = `"${selectedText}"`;
+
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'comment-panel-item-comment';
+            commentDiv.textContent = commentText;
+
+            contentDiv.appendChild(textDiv);
+            contentDiv.appendChild(commentDiv);
+            item.appendChild(numberDiv);
+            item.appendChild(contentDiv);
 
             // Click to scroll to comment
             item.addEventListener('click', () => {
@@ -490,9 +503,15 @@
         try {
             range.surroundContents(highlight);
         } catch (e) {
-            // If surroundContents fails (e.g., range spans multiple elements),
-            // just skip highlighting for now
-            console.error('Could not highlight comment:', e);
+            // If surroundContents fails (e.g., range spans multiple elements like inline code),
+            // use a more robust approach by extracting and re-inserting the contents
+            try {
+                const fragment = range.extractContents();
+                highlight.appendChild(fragment);
+                range.insertNode(highlight);
+            } catch (e2) {
+                console.error('Could not highlight comment:', e2);
+            }
         }
     }
 
@@ -539,10 +558,10 @@
             }
         }
 
-        // Search for text only within the relevant blocks
+        // Try to find the text using window.find() which handles fragmented text nodes
         for (const block of relevantBlocks) {
+            // First, try simple text node search for performance
             const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null, false);
-
             let node;
             while ((node = walker.nextNode())) {
                 const index = node.textContent.indexOf(text);
@@ -550,12 +569,69 @@
                     const range = document.createRange();
                     range.setStart(node, index);
                     range.setEnd(node, index + text.length);
-
                     highlightComment(range, comment);
-                    return; // Found and highlighted, we're done
+                    return;
+                }
+            }
+
+            // If simple search failed, use a more robust approach that handles inline elements
+            // Get all text content from the block, then search for our text
+            const blockText = block.textContent;
+            const textIndex = blockText.indexOf(text);
+            if (textIndex !== -1) {
+                // Found the text in this block, now find the exact range
+                const range = findTextRange(block, text, textIndex);
+                if (range) {
+                    highlightComment(range, comment);
+                    return;
                 }
             }
         }
+
+        console.warn('Could not find text to highlight:', text);
+    }
+
+    /**
+     * Find a range for the given text within a container element,
+     * handling cases where text spans multiple nodes (e.g., across inline code elements)
+     */
+    function findTextRange(container, searchText, textIndex) {
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+
+        let currentPos = 0;
+        let startNode = null;
+        let startOffset = 0;
+        let endNode = null;
+        let endOffset = 0;
+
+        let node;
+        while ((node = walker.nextNode())) {
+            const nodeLength = node.textContent.length;
+
+            // Check if this node contains the start of our search text
+            if (startNode === null && currentPos + nodeLength > textIndex) {
+                startNode = node;
+                startOffset = textIndex - currentPos;
+            }
+
+            // Check if this node contains the end of our search text
+            if (startNode !== null && currentPos + nodeLength >= textIndex + searchText.length) {
+                endNode = node;
+                endOffset = textIndex + searchText.length - currentPos;
+                break;
+            }
+
+            currentPos += nodeLength;
+        }
+
+        if (startNode && endNode) {
+            const range = document.createRange();
+            range.setStart(startNode, startOffset);
+            range.setEnd(endNode, endOffset);
+            return range;
+        }
+
+        return null;
     }
 
     /**

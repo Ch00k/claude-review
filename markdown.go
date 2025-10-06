@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	gohtml "html"
 	"strconv"
 
 	"github.com/yuin/goldmark"
@@ -153,11 +154,12 @@ func (r *CodeBlockRenderer) renderCodeBlock(
 
 		_, _ = w.WriteString("><code>")
 
-		// Write code content
+		// Write code content with HTML escaping
 		lines := node.Lines()
 		for i := 0; i < lines.Len(); i++ {
 			line := lines.At(i)
-			_, _ = w.Write(line.Value(source))
+			escapedContent := gohtml.EscapeString(string(line.Value(source)))
+			_, _ = w.WriteString(escapedContent)
 		}
 
 		_, _ = w.WriteString("</code></pre>\n")
