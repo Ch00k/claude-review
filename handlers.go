@@ -279,6 +279,36 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if comment.ProjectDirectory == "" {
+		http.Error(w, "project_directory is required", http.StatusBadRequest)
+		return
+	}
+	if comment.FilePath == "" {
+		http.Error(w, "file_path is required", http.StatusBadRequest)
+		return
+	}
+	if comment.LineStart <= 0 {
+		http.Error(w, "line_start must be positive", http.StatusBadRequest)
+		return
+	}
+	if comment.LineEnd <= 0 {
+		http.Error(w, "line_end must be positive", http.StatusBadRequest)
+		return
+	}
+	if comment.LineEnd < comment.LineStart {
+		http.Error(w, "line_end must be >= line_start", http.StatusBadRequest)
+		return
+	}
+	if comment.SelectedText == "" {
+		http.Error(w, "selected_text is required", http.StatusBadRequest)
+		return
+	}
+	if comment.CommentText == "" {
+		http.Error(w, "comment_text is required", http.StatusBadRequest)
+		return
+	}
+
 	if err := createComment(&comment); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
