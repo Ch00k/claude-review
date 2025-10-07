@@ -25,6 +25,12 @@ func TestE2E_Daemon_StartAndStop(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}
 
+	// Ensure daemon is stopped on test completion (even on failure)
+	t.Cleanup(func() {
+		env.runCLI(t, "server", "--stop")
+		time.Sleep(500 * time.Millisecond)
+	})
+
 	// Start daemon
 	output, err := env.runCLI(t, "server", "--daemon")
 	require.NoError(t, err, "Failed to start daemon")
@@ -76,6 +82,12 @@ func TestE2E_Daemon_Status(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}
 
+	// Ensure daemon is stopped on test completion
+	t.Cleanup(func() {
+		env.runCLI(t, "server", "--stop")
+		time.Sleep(500 * time.Millisecond)
+	})
+
 	// Check status when not running
 	output, err := env.runCLI(t, "server", "--status")
 	assert.Error(t, err, "Status should return error when server not running")
@@ -110,6 +122,12 @@ func TestE2E_Daemon_MultipleStartAttempts(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}
 
+	// Ensure daemon is stopped on test completion
+	t.Cleanup(func() {
+		env.runCLI(t, "server", "--stop")
+		time.Sleep(500 * time.Millisecond)
+	})
+
 	// Start daemon
 	output, err := env.runCLI(t, "server", "--daemon")
 	require.NoError(t, err)
@@ -134,6 +152,12 @@ func TestE2E_Daemon_StalePIDFile(t *testing.T) {
 		env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
+
+	// Ensure daemon is stopped on test completion
+	t.Cleanup(func() {
+		env.runCLI(t, "server", "--stop")
+		time.Sleep(500 * time.Millisecond)
+	})
 
 	// Create a stale PID file with a non-existent PID
 	pidFile := filepath.Join(env.DataDir, "server.pid")
@@ -186,6 +210,12 @@ func TestE2E_Daemon_LogFile(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}
 
+	// Ensure daemon is stopped on test completion
+	t.Cleanup(func() {
+		env.runCLI(t, "server", "--stop")
+		time.Sleep(500 * time.Millisecond)
+	})
+
 	// Start daemon
 	_, err := env.runCLI(t, "server", "--daemon")
 	require.NoError(t, err)
@@ -218,6 +248,12 @@ func TestE2E_Daemon_GracefulShutdown(t *testing.T) {
 		env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
+
+	// Ensure daemon is stopped on test completion
+	t.Cleanup(func() {
+		env.runCLI(t, "server", "--stop")
+		time.Sleep(500 * time.Millisecond)
+	})
 
 	// Register project and create comment
 	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)
@@ -298,6 +334,12 @@ func TestE2E_Daemon_ProcessIsolation(t *testing.T) {
 		env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
+
+	// Ensure daemon is stopped on test completion
+	t.Cleanup(func() {
+		env.runCLI(t, "server", "--stop")
+		time.Sleep(500 * time.Millisecond)
+	})
 
 	// Start daemon
 	_, err := env.runCLI(t, "server", "--daemon")
