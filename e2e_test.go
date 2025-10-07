@@ -45,9 +45,9 @@ func setupE2E(t *testing.T) *TestEnv {
 	// Create test markdown files
 	createTestMarkdownFiles(t, projectDir)
 
-	// Build the binary
-	t.Logf("Building binary to %s", binaryPath)
-	buildCmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	// Build the binary with coverage instrumentation
+	t.Logf("Building instrumented binary to %s", binaryPath)
+	buildCmd := exec.Command("go", "build", "-cover", "-o", binaryPath, ".")
 	buildOutput, err := buildCmd.CombinedOutput()
 	if err != nil {
 		t.Logf("Build output: %s", buildOutput)
@@ -57,10 +57,16 @@ func setupE2E(t *testing.T) *TestEnv {
 	// Start server
 	port := "14779"
 	logFile := filepath.Join(tempDir, "server.log")
+
+	// Use local tmp/ directory for coverage data (persists across tests)
+	coverageDir := "tmp/coverage"
+	require.NoError(t, os.MkdirAll(coverageDir, 0755))
+
 	serverCmd := exec.Command(binaryPath, "server")
 	serverCmd.Env = append(os.Environ(),
 		"CR_DATA_DIR="+dataDir,
 		"CR_LISTEN_PORT="+port,
+		"GOCOVERDIR="+coverageDir,
 	)
 
 	// Capture server logs
@@ -88,7 +94,10 @@ func setupE2E(t *testing.T) *TestEnv {
 
 	t.Cleanup(func() {
 		if serverCmd.Process != nil {
-			serverCmd.Process.Kill()
+			// Send SIGINT for graceful shutdown (allows coverage to be written)
+			serverCmd.Process.Signal(os.Interrupt)
+			// Give it a moment to flush coverage data
+			time.Sleep(100 * time.Millisecond)
 			serverCmd.Wait()
 		}
 		logWriter.Close()
@@ -156,6 +165,7 @@ func (env *TestEnv) runCLI(t *testing.T, args ...string) (string, error) {
 	cmd.Env = append(os.Environ(),
 		"CR_DATA_DIR="+env.DataDir,
 		"CR_LISTEN_PORT="+env.Port,
+		"GOCOVERDIR=tmp/coverage",
 	)
 
 	output, err := cmd.CombinedOutput()

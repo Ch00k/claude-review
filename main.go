@@ -90,10 +90,10 @@ func runServer() {
 	}
 
 	// Actual server logic (runs in foreground or as daemon child)
-	if *daemonChild {
-		// Setup signal handlers for graceful shutdown
-		setupSignalHandlers()
+	// Setup signal handlers for graceful shutdown (always, not just daemon)
+	setupSignalHandlers()
 
+	if *daemonChild {
 		// Write PID file
 		if err := writePIDFile(); err != nil {
 			log.Fatalf("Failed to write PID file: %v", err)
