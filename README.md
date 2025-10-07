@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/Ch00k/claude-review/graph/badge.svg?token=VFe48YCOtf)](https://codecov.io/gh/Ch00k/claude-review)
+
 # claude-review
 
 claude-review is a lightweight companion for working on planning documents with Claude Code. It lets you review a
