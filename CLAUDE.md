@@ -8,16 +8,16 @@ claude-review is a lightweight companion for working on planning documents with 
 
 ### Core Workflow
 1. User creates a planning document (e.g., PLAN.md) via Claude Code
-2. User starts the claude-review server and opens the document in browser
+2. User runs `/cr-review <file>` slash command to start server and open document in browser
 3. User highlights portions of the rendered Markdown and adds comments
-4. User runs `/address-comments <file>` slash command in Claude Code to pull unresolved comments
+4. User runs `/cr-address <file>` slash command in Claude Code to pull unresolved comments
 5. Claude Code addresses the comments and marks them as resolved
 6. Browser automatically reloads to show updated document
 
 ## Architecture
 
 ### Backend (Go)
-- **main.go**: Entry point with CLI commands (server, address, resolve)
+- **main.go**: Entry point with CLI commands (server, register, review, address, resolve, install, version)
 - **handlers.go**: HTTP route handlers for web UI and REST API
 - **db.go**: SQLite database layer for projects and comments
 - **markdown.go**: Custom goldmark renderer that adds `data-line-start` and `data-line-end` attributes to HTML elements
@@ -25,6 +25,9 @@ claude-review is a lightweight companion for working on planning documents with 
 - **daemon.go**: Daemon process management (start, stop, status, PID tracking)
 - **watcher.go**: File system watcher using fsnotify for automatic reload on file changes
 - **notify.go**: HTTP client for notifying server about resolved comments
+- **version.go**: Version information
+- **install.go**: Slash command installation logic
+- **embed.go**: Embedded frontend assets
 
 ### Frontend
 - **frontend/templates/**: Go HTML templates (viewer.html, directory.html, index.html)
@@ -36,8 +39,9 @@ SQLite database stored at `~/.local/share/claude-review/comments.db`:
 - **projects**: Tracks registered project directories
 - **comments**: Stores inline comments with line ranges, selected text, resolved status
 
-### Custom Slash Command
-The `/address-comments` command (in `slash-commands/address-comments.md`) runs `claude-review address --file <file>` to fetch unresolved comments, then instructs Claude Code to address them and mark them resolved.
+### Custom Slash Commands
+- `/cr-review` (in `slash-commands/cr-review.md`): Runs `claude-review review --file <file>` to start the server, register the project, and open the file URL in the browser
+- `/cr-address` (in `slash-commands/cr-address.md`): Runs `claude-review address --file <file>` to fetch unresolved comments, then instructs Claude Code to address them and mark them resolved
 
 ## Development Commands
 
@@ -64,7 +68,7 @@ make prettier           # Format frontend files only
 
 ### Installation
 ```bash
-make install-slash-commands  # Copy slash command to ~/.claude/commands/
+make install            # Build binary and install slash commands to ~/.claude/commands/
 ```
 
 ### Release
@@ -92,8 +96,11 @@ The server uses multiple mechanisms for real-time updates:
 - `claude-review server --stop`: Stop the running daemon
 - `claude-review server --status`: Check if daemon is running and show PID info
 - `claude-review register [--project <path>]`: Register a project directory (defaults to current directory)
+- `claude-review review --file <path>`: Start server, register project, and show file URL
 - `claude-review address --file <path>`: Output unresolved comments for file
 - `claude-review resolve --file <path>`: Mark all comments as resolved for file
+- `claude-review install`: Install slash commands to ~/.claude/commands/
+- `claude-review version`: Show version information
 
 ### Daemon Management
 The server can run as a background daemon:
