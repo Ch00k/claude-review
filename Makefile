@@ -7,6 +7,9 @@ CR_EXECUTABLE_FILENAME ?= claude-review
 CR_BUILD_ARTIFACTS_DIR ?= dist
 CR_VERSION ?= dev
 
+CR_LISTEN_PORT ?= 4778
+CR_DATA_DIR ?= dev_data_dir
+
 
 prettier:
 	prettier --write frontend/
@@ -36,15 +39,13 @@ test-ci:
 	echo "mode: set" > coverage.txt
 	grep -h -v "^mode:" coverage-unit.txt coverage-e2e.txt >> coverage.txt
 
-air:
-	air -c .air.toml
-
 build:
 	go build -trimpath -ldflags="-s -w -X main.Version=${CR_VERSION}" -o ./${CR_BUILD_ARTIFACTS_DIR}/${CR_EXECUTABLE_FILENAME} .
 
 build-release: build
 
-dev: air
+dev:
+	air -c .air.toml
 
 release:
 	@echo "Available release types:"

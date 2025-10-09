@@ -24,7 +24,8 @@ func main() {
 		fmt.Println("  register                 Register the current project directory")
 		fmt.Println("  review                   Start server, register project, and show file URL")
 		fmt.Println("  address                  Show unresolved comments for a file")
-		fmt.Println("  resolve                  Mark all comments for a file as resolved")
+		fmt.Println("  reply                    Reply to a comment thread")
+		fmt.Println("  resolve                  Mark comments as resolved")
 		fmt.Println("  install                  Install slash commands")
 		fmt.Println("  version                  Show version information")
 		os.Exit(1)
@@ -41,6 +42,8 @@ func main() {
 		runReview()
 	case "address":
 		runAddress()
+	case "reply":
+		runReply()
 	case "resolve":
 		runResolve()
 	case "install":
@@ -130,6 +133,7 @@ func runServer() {
 	// API Routes
 	r.Post("/api/comments", handleCreateComment)
 	r.Patch("/api/comments/{id}", handleUpdateComment)
+	r.Patch("/api/comments/{id}/resolve", handleResolveThread)
 	r.Delete("/api/comments/{id}", handleDeleteComment)
 	r.Get("/api/events", handleSSE)
 	r.Post("/api/events", handleBroadcast)
@@ -293,24 +297,141 @@ func runAddress() {
 		return
 	}
 
-	fmt.Printf("Found %d unresolved comment(s) for %s:\n\n", len(comments), *filePath)
+	// Group comments by thread (root comments and their replies)
+	threads := groupCommentsByThread(comments)
 
-	for i, comment := range comments {
-		fmt.Printf("## Comment %d (lines %d-%d)\n", i+1, comment.LineStart, comment.LineEnd)
-		fmt.Printf("**Context:**\n")
+	fmt.Printf("Found %d unresolved comment(s) for %s:\n\n", len(threads), *filePath)
 
-		// Format selected text as blockquote
-		selectedLines := strings.Split(comment.SelectedText, "\n")
-		for _, line := range selectedLines {
-			fmt.Printf("> %s\n", line)
+	for threadIndex, thread := range threads {
+		rootComment := thread[0]
+
+		// Show root comment with line numbers
+		lineRange := ""
+		if rootComment.LineStart != nil && rootComment.LineEnd != nil {
+			lineRange = fmt.Sprintf(" (lines %d-%d)", *rootComment.LineStart, *rootComment.LineEnd)
+		}
+		fmt.Printf("## Comment #%d%s\n", rootComment.ID, lineRange)
+
+		// Show selected text for root comment
+		if rootComment.SelectedText != "" {
+			selectedLines := strings.Split(rootComment.SelectedText, "\n")
+			for _, line := range selectedLines {
+				fmt.Printf("> %s\n", line)
+			}
+			fmt.Println()
 		}
 
-		fmt.Printf("\n**Feedback:**\n")
-		fmt.Printf("%s\n", comment.CommentText)
-		fmt.Printf("\n---\n\n")
+		// Show root comment text
+		fmt.Printf("**%s:**\n", capitalizeFirst(rootComment.Author))
+		fmt.Printf("%s\n", rootComment.CommentText)
+
+		// Show replies
+		if len(thread) > 1 {
+			fmt.Println()
+			for _, reply := range thread[1:] {
+				fmt.Printf("\n**Reply from %s:**\n", capitalizeFirst(reply.Author))
+				fmt.Printf("%s\n", reply.CommentText)
+			}
+		}
+
+		if threadIndex < len(threads)-1 {
+			fmt.Printf("\n---\n\n")
+		}
+	}
+}
+
+func groupCommentsByThread(comments []Comment) [][]Comment {
+	threads := make([][]Comment, 0)
+	threadMap := make(map[int][]Comment)
+
+	// First pass: group comments by root ID
+	for _, comment := range comments {
+		if comment.RootID == nil {
+			// This is a root comment
+			threadMap[comment.ID] = []Comment{comment}
+		} else {
+			// This is a reply
+			threadMap[*comment.RootID] = append(threadMap[*comment.RootID], comment)
+		}
 	}
 
-	fmt.Println("Please address each comment by updating the file accordingly.")
+	// Second pass: create ordered list of threads
+	seenRoots := make(map[int]bool)
+	for _, comment := range comments {
+		rootID := comment.ID
+		if comment.RootID != nil {
+			rootID = *comment.RootID
+		}
+
+		if !seenRoots[rootID] {
+			seenRoots[rootID] = true
+			if thread, exists := threadMap[rootID]; exists {
+				threads = append(threads, thread)
+			}
+		}
+	}
+
+	return threads
+}
+
+func runReply() {
+	// Parse flags
+	replyCmd := flag.NewFlagSet("reply", flag.ExitOnError)
+	commentID := replyCmd.Int("comment-id", 0, "ID of the comment to reply to")
+	message := replyCmd.String("message", "", "Reply message")
+
+	if err := replyCmd.Parse(os.Args[2:]); err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
+	}
+
+	if *commentID == 0 {
+		fmt.Println("Error: --comment-id flag is required")
+		os.Exit(1)
+	}
+
+	if *message == "" {
+		fmt.Println("Error: --message flag is required")
+		os.Exit(1)
+	}
+
+	// Initialize database
+	if err := initDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	// Get the comment to reply to
+	parentComment, err := getCommentByID(*commentID)
+	if err != nil {
+		log.Fatalf("Failed to get comment: %v", err)
+	}
+	if parentComment == nil {
+		fmt.Printf("Error: comment %d not found\n", *commentID)
+		os.Exit(1)
+	}
+
+	// Ensure we're replying to a root comment (not a reply)
+	if parentComment.RootID != nil {
+		fmt.Println("Error: can only reply to root comments, not to replies")
+		os.Exit(1)
+	}
+
+	// Create the reply
+	reply := &Comment{
+		ProjectDirectory: parentComment.ProjectDirectory,
+		FilePath:         parentComment.FilePath,
+		CommentText:      *message,
+		Author:           "agent",
+		RootID:           &parentComment.ID,
+	}
+
+	if err := createComment(reply); err != nil {
+		log.Fatalf("Failed to create reply: %v", err)
+	}
+
+	fmt.Printf("Reply added to comment %d\n", *commentID)
+
+	// Notify server about the new reply (if server is running)
+	notifyServerCommentsChanged(parentComment.ProjectDirectory, parentComment.FilePath)
 }
 
 func runResolve() {
@@ -318,11 +439,52 @@ func runResolve() {
 	resolveCmd := flag.NewFlagSet("resolve", flag.ExitOnError)
 	projectDir := resolveCmd.String("project", "", "Project directory")
 	filePath := resolveCmd.String("file", "", "File path relative to project directory")
+	commentID := resolveCmd.Int("comment-id", 0, "ID of specific comment to resolve")
 
 	if err := resolveCmd.Parse(os.Args[2:]); err != nil {
 		log.Fatalf("Failed to parse flags: %v", err)
 	}
 
+	// Initialize database
+	if err := initDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	// Handle comment-id mode
+	if *commentID != 0 {
+		comment, err := getCommentByID(*commentID)
+		if err != nil {
+			log.Fatalf("Failed to get comment: %v", err)
+		}
+		if comment == nil {
+			fmt.Printf("Error: comment %d not found\n", *commentID)
+			os.Exit(1)
+		}
+
+		// Get the root comment ID
+		rootID := *commentID
+		if comment.RootID != nil {
+			rootID = *comment.RootID
+		}
+
+		// Resolve the thread
+		count, err := resolveThread(rootID, "user")
+		if err != nil {
+			log.Fatalf("Failed to resolve thread: %v", err)
+		}
+
+		if count == 0 {
+			fmt.Printf("Thread %d was already resolved\n", rootID)
+		} else {
+			fmt.Printf("Resolved thread %d (%d comment(s))\n", rootID, count)
+
+			// Notify server
+			notifyServerCommentsChanged(comment.ProjectDirectory, comment.FilePath)
+		}
+		return
+	}
+
+	// Handle file mode (original behavior)
 	// Resolve project directory (default to current directory)
 	if *projectDir == "" || *projectDir == "." {
 		cwd, err := os.Getwd()
@@ -332,17 +494,12 @@ func runResolve() {
 		*projectDir = cwd
 	}
 	if *filePath == "" {
-		fmt.Println("Error: --file flag is required")
+		fmt.Println("Error: --file flag is required (or use --comment-id)")
 		os.Exit(1)
 	}
 
 	// Remove @ prefix if present
 	*filePath = strings.TrimPrefix(*filePath, "@")
-
-	// Initialize database
-	if err := initDB(); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
 
 	// Debug: show what we're searching for
 	log.Printf("Searching for comments: project_directory=%q, file_path=%q", *projectDir, *filePath)
@@ -366,7 +523,7 @@ func runResolve() {
 		fmt.Printf("Resolved %d comment(s) for %s\n", count, *filePath)
 
 		// Notify server about resolved comments (if server is running)
-		notifyServerCommentsResolved(*projectDir, *filePath)
+		notifyServerCommentsChanged(*projectDir, *filePath)
 	}
 }
 
@@ -378,4 +535,11 @@ func runInstall() {
 
 func runVersion() {
 	fmt.Println(Version)
+}
+
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }

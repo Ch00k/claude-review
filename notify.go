@@ -8,9 +8,9 @@ import (
 	"os"
 )
 
-// notifyServerCommentsResolved sends a broadcast event to the server
-// to notify connected clients that comments have been resolved
-func notifyServerCommentsResolved(projectDir, filePath string) {
+// notifyServerCommentsChanged sends a broadcast event to the server
+// to notify connected clients that comments have changed
+func notifyServerCommentsChanged(projectDir, filePath string) {
 	port := os.Getenv("CR_LISTEN_PORT")
 	if port == "" {
 		port = "4779"

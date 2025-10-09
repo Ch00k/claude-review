@@ -142,21 +142,51 @@
     function createCommentPanel() {
         commentPanel = document.createElement('div');
         commentPanel.id = 'comment-panel';
-        commentPanel.className = 'expanded';
+
+        // Restore panel state from localStorage, default to 'expanded'
+        const savedState = localStorage.getItem('claude-review-panel-state') || 'expanded';
+        commentPanel.className = savedState;
+
         commentPanel.innerHTML = `
             <div class="comment-panel-header">
-                <h3>Comments</h3>
-                <span class="comment-count">0</span>
+                <div class="comment-panel-header-left">
+                    <h3>Comments</h3>
+                    <span class="comment-count">0</span>
+                </div>
+                <button class="panel-resize-btn" title="Resize panel">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="panel-icon panel-left-open">
+                        <rect width="18" height="18" x="3" y="3" rx="2"/>
+                        <path d="M9 3v18"/>
+                        <path d="m14 9 3 3-3 3"/>
+                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="panel-icon panel-right-open">
+                        <rect width="18" height="18" x="3" y="3" rx="2"/>
+                        <path d="M15 3v18"/>
+                        <path d="m10 15-3-3 3-3"/>
+                    </svg>
+                </button>
             </div>
             <div class="comment-panel-list"></div>
         `;
         document.body.appendChild(commentPanel);
 
-        // Click on header to toggle collapse/expand
-        commentPanel.querySelector('.comment-panel-header').addEventListener('click', () => {
-            commentPanel.classList.toggle('expanded');
-            commentPanel.classList.toggle('collapsed');
+        // Click on resize button to cycle through widths
+        commentPanel.querySelector('.panel-resize-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (commentPanel.classList.contains('expanded')) {
+                commentPanel.classList.remove('expanded');
+                commentPanel.classList.add('expanded-wide');
+                savePanelState('expanded-wide');
+            } else if (commentPanel.classList.contains('expanded-wide')) {
+                commentPanel.classList.remove('expanded-wide');
+                commentPanel.classList.add('expanded');
+                savePanelState('expanded');
+            }
         });
+    }
+
+    function savePanelState(state) {
+        localStorage.setItem('claude-review-panel-state', state);
     }
 
     function updateCommentPanel() {
@@ -165,59 +195,215 @@
         const listContainer = commentPanel.querySelector('.comment-panel-list');
         const countElement = commentPanel.querySelector('.comment-count');
 
-        // Get all comment highlights from the DOM
-        const highlights = document.querySelectorAll('.comment-highlight');
+        // Group comments by thread
+        const threads = groupCommentsByThread();
 
-        countElement.textContent = highlights.length;
+        countElement.textContent = threads.length;
 
         // Clear existing list
         listContainer.innerHTML = '';
 
-        // Add each comment to the panel
-        highlights.forEach((highlight, index) => {
-            const commentId = highlight.dataset.commentId;
-            const commentText = highlight.dataset.commentText;
-            const selectedText = highlight.dataset.selectedText;
-            const lineStart = highlight.dataset.lineStart;
-            const lineEnd = highlight.dataset.lineEnd;
+        // Add each thread to the panel
+        threads.forEach((thread) => {
+            const rootComment = thread.root;
+            const replies = thread.replies;
 
-            const lineRange = lineStart === lineEnd ? `L${lineStart}` : `L${lineStart}-${lineEnd}`;
+            // Check if thread is awaiting user response (last reply is from agent)
+            const isAwaitingResponse = replies.length > 0 && replies[replies.length - 1].author === 'agent';
 
-            const item = document.createElement('div');
-            item.className = 'comment-panel-item';
+            const threadItem = document.createElement('div');
+            threadItem.className = 'thread-container';
+            threadItem.dataset.threadId = rootComment.id;
 
-            const numberDiv = document.createElement('div');
-            numberDiv.className = 'comment-panel-item-number';
-            numberDiv.textContent = lineRange;
+            // Create root comment display
+            const rootItem = createCommentPanelItem(rootComment, true, replies.length, isAwaitingResponse);
 
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'comment-panel-item-content';
+            threadItem.appendChild(rootItem);
 
-            const textDiv = document.createElement('div');
-            textDiv.className = 'comment-panel-item-text';
-            textDiv.textContent = `"${selectedText}"`;
+            // Add replies container (initially hidden if collapsed)
+            if (replies.length > 0) {
+                const repliesContainer = document.createElement('div');
+                repliesContainer.className = 'thread-replies';
 
-            const commentDiv = document.createElement('div');
-            commentDiv.className = 'comment-panel-item-comment';
-            commentDiv.textContent = commentText;
+                replies.forEach((reply) => {
+                    const replyItem = createCommentPanelItem(reply, false, 0, false);
+                    repliesContainer.appendChild(replyItem);
+                });
 
-            contentDiv.appendChild(textDiv);
-            contentDiv.appendChild(commentDiv);
-            item.appendChild(numberDiv);
-            item.appendChild(contentDiv);
+                threadItem.appendChild(repliesContainer);
+            }
 
-            // Click to scroll to comment
-            item.addEventListener('click', () => {
-                highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Briefly highlight the comment
-                highlight.style.backgroundColor = '#ffeb99';
-                setTimeout(() => {
-                    highlight.style.backgroundColor = '#fff8c5';
-                }, 1000);
-            });
-
-            listContainer.appendChild(item);
+            listContainer.appendChild(threadItem);
         });
+    }
+
+    function createCommentPanelItem(comment, isRoot, replyCount, isAwaitingResponse) {
+        const item = document.createElement('div');
+        item.className = isRoot ? 'thread-item comment-root' : 'thread-item comment-reply';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'thread-item-content';
+
+        // Add author label with timestamp
+        const authorDiv = document.createElement('div');
+        authorDiv.className = 'comment-author';
+        if (comment.author === 'agent') {
+            authorDiv.classList.add('author-agent');
+        }
+
+        const authorSpan = document.createElement('span');
+        authorSpan.textContent = capitalizeFirst(comment.author);
+        authorDiv.appendChild(authorSpan);
+
+        if (comment.created_at) {
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'comment-timestamp';
+            timeSpan.textContent = formatRelativeTime(comment.created_at);
+            authorDiv.appendChild(timeSpan);
+        }
+
+        contentDiv.appendChild(authorDiv);
+
+        // Show selected text for root comments
+        if (isRoot && comment.selected_text) {
+            const textDiv = document.createElement('div');
+            textDiv.className = 'thread-item-text';
+            textDiv.textContent = `"${comment.selected_text}"`;
+            contentDiv.appendChild(textDiv);
+        }
+
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'thread-item-comment';
+        commentDiv.textContent = comment.comment_text;
+        contentDiv.appendChild(commentDiv);
+
+        item.appendChild(contentDiv);
+
+        // Add badges container for root comments
+        if (isRoot) {
+            const badgesDiv = document.createElement('div');
+            badgesDiv.className = 'comment-badges';
+
+            // Add status dot for awaiting response
+            if (isAwaitingResponse) {
+                const statusDot = document.createElement('div');
+                statusDot.className = 'comment-status-dot';
+                statusDot.title = 'Awaiting your response';
+                badgesDiv.appendChild(statusDot);
+            }
+
+            // Add reply button as badge
+            const replyBtn = document.createElement('button');
+            replyBtn.className = 'comment-badge-btn comment-badge-reply';
+            replyBtn.textContent = 'Reply';
+            replyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showReplyPopup(comment);
+            });
+            badgesDiv.appendChild(replyBtn);
+
+            // Add resolve button as badge
+            const resolveBtn = document.createElement('button');
+            resolveBtn.className = 'comment-badge-btn comment-badge-resolve';
+            resolveBtn.textContent = 'Resolve';
+            resolveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleResolveThread(comment);
+            });
+            badgesDiv.appendChild(resolveBtn);
+
+            item.appendChild(badgesDiv);
+        }
+
+        // Click to scroll to root comment highlight (only for root comments)
+        if (isRoot) {
+            item.addEventListener('click', (e) => {
+                // Don't scroll if clicking on badge buttons
+                if (e.target.closest('.comment-badge-btn')) return;
+
+                const highlight = document.querySelector(`.comment-highlight[data-comment-id="${comment.id}"]`);
+                if (highlight) {
+                    highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    highlight.style.backgroundColor = '#ffeb99';
+                    setTimeout(() => {
+                        highlight.style.backgroundColor = '#fff8c5';
+                    }, 1000);
+                }
+            });
+        }
+
+        return item;
+    }
+
+    function groupCommentsByThread() {
+        if (typeof comments === 'undefined' || !comments || comments.length === 0) {
+            return [];
+        }
+
+        const threadMap = new Map();
+
+        // First pass: create map of root comments
+        comments.forEach((comment) => {
+            if (!comment.root_id) {
+                threadMap.set(comment.id, {
+                    root: comment,
+                    replies: [],
+                });
+            }
+        });
+
+        // Second pass: add replies to their threads
+        comments.forEach((comment) => {
+            if (comment.root_id) {
+                const thread = threadMap.get(comment.root_id);
+                if (thread) {
+                    thread.replies.push(comment);
+                }
+            }
+        });
+
+        // Convert to array and sort by root comment line number
+        return Array.from(threadMap.values()).sort((a, b) => {
+            const lineA = a.root.line_start || 0;
+            const lineB = b.root.line_start || 0;
+            return lineA - lineB;
+        });
+    }
+
+    function capitalizeFirst(s) {
+        if (!s) return '';
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function formatRelativeTime(timestamp) {
+        if (!timestamp) return '';
+
+        const now = new Date();
+        const then = new Date(timestamp);
+
+        // Check if date is valid
+        if (isNaN(then.getTime())) {
+            console.warn('Invalid timestamp:', timestamp);
+            return '';
+        }
+
+        const diffMs = now - then;
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffSecs < 60) {
+            return 'just now';
+        } else if (diffMins < 60) {
+            return `${diffMins}m ago`;
+        } else if (diffHours < 24) {
+            return `${diffHours}h ago`;
+        } else if (diffDays < 7) {
+            return `${diffDays}d ago`;
+        } else {
+            return then.toLocaleDateString();
+        }
     }
 
     function createCommentPopup() {
@@ -320,6 +506,125 @@
         }
     }
 
+    function showReplyPopup(rootComment) {
+        const saveBtn = document.getElementById('comment-save');
+        const deleteBtn = document.getElementById('comment-delete');
+        const cancelBtn = document.getElementById('comment-cancel');
+
+        saveBtn.textContent = 'Reply';
+        deleteBtn.style.display = 'none';
+
+        // Remove old listeners
+        saveBtn.replaceWith(saveBtn.cloneNode(true));
+        cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+
+        // Add new listeners
+        document.getElementById('comment-save').addEventListener('click', () => handleAddReply(rootComment));
+        document.getElementById('comment-cancel').addEventListener('click', hideCommentPopup);
+
+        commentPopup.style.display = 'block';
+        // Position near the center of the screen
+        commentPopup.style.left = '50%';
+        commentPopup.style.top = '30%';
+        commentPopup.style.transform = 'translateX(-50%)';
+
+        // Focus textarea
+        const textarea = document.getElementById('comment-text');
+        textarea.value = '';
+        textarea.focus({ preventScroll: true });
+    }
+
+    async function handleAddReply(rootComment) {
+        const replyText = document.getElementById('comment-text').value.trim();
+        if (!replyText) {
+            alert('Please enter a reply');
+            return;
+        }
+
+        const payload = {
+            project_directory: projectDir,
+            file_path: filePath,
+            comment_text: replyText,
+            root_id: rootComment.id,
+            author: 'user',
+        };
+
+        try {
+            const response = await fetch('/api/comments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const savedReply = await response.json();
+
+            // Add reply to comments array
+            comments.push(savedReply);
+
+            // Update comment panel to show new reply
+            updateCommentPanel();
+
+            // Hide popup
+            hideCommentPopup();
+        } catch (error) {
+            console.error('Failed to save reply:', error);
+            alert('Failed to save reply. Please try again.');
+        }
+    }
+
+    async function handleResolveThread(rootComment) {
+        if (!confirm('Are you sure you want to resolve this thread?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/comments/${rootComment.id}/resolve`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Remove the thread from the comments array (root + all replies)
+            if (typeof comments !== 'undefined' && comments) {
+                // Remove root comment and all its replies by filtering in reverse
+                for (let i = comments.length - 1; i >= 0; i--) {
+                    const c = comments[i];
+                    if (c.id === rootComment.id || c.root_id === rootComment.id) {
+                        comments.splice(i, 1);
+                    }
+                }
+            }
+
+            // Remove highlight from document
+            const highlight = document.querySelector(`.comment-highlight[data-comment-id="${rootComment.id}"]`);
+            if (highlight) {
+                const parent = highlight.parentNode;
+                while (highlight.firstChild) {
+                    parent.insertBefore(highlight.firstChild, highlight);
+                }
+                parent.removeChild(highlight);
+            }
+
+            // Update comment panel
+            updateCommentPanel();
+        } catch (error) {
+            console.error('Failed to resolve thread:', error);
+            alert('Failed to resolve thread. Please try again.');
+        }
+    }
+
     /**
      * Extract line numbers from a DOM Range by finding parent elements
      * with data-line-start and data-line-end attributes
@@ -389,6 +694,11 @@
 
             const savedComment = await response.json();
 
+            // Add comment to comments array
+            if (typeof comments !== 'undefined' && comments) {
+                comments.push(savedComment);
+            }
+
             // Find and highlight the text in the document
             highlightCommentByText(savedComment);
 
@@ -430,6 +740,14 @@
 
             const updatedComment = await response.json();
 
+            // Update the comment in the comments array
+            if (typeof comments !== 'undefined' && comments) {
+                const index = comments.findIndex((c) => c.id === comment.id);
+                if (index !== -1) {
+                    comments[index].comment_text = commentText;
+                }
+            }
+
             // Update the highlight element
             highlightElement.dataset.commentText = commentText;
             highlightElement.title = commentText;
@@ -469,6 +787,14 @@
             }
             parent.removeChild(highlightElement);
 
+            // Remove comment from comments array
+            if (typeof comments !== 'undefined' && comments) {
+                const index = comments.findIndex((c) => c.id === comment.id);
+                if (index !== -1) {
+                    comments.splice(index, 1);
+                }
+            }
+
             // Update comment panel
             updateCommentPanel();
 
@@ -478,6 +804,16 @@
             console.error('Failed to delete comment:', error);
             alert('Failed to delete comment. Please try again.');
         }
+    }
+
+    /**
+     * Check if a comment has replies
+     */
+    function commentHasReplies(commentId) {
+        if (typeof comments === 'undefined' || !comments) {
+            return false;
+        }
+        return comments.some((c) => c.root_id === commentId);
     }
 
     /**
@@ -494,10 +830,19 @@
         highlight.dataset.lineEnd = comment.line_end;
         highlight.title = comment.comment_text;
 
-        // Click handler to edit comment
+        // Check if this comment has replies and add class accordingly
+        const hasReply = commentHasReplies(comment.id);
+        if (hasReply) {
+            highlight.classList.add('has-replies');
+        }
+
+        // Click handler to edit comment (only if it has no replies)
         highlight.addEventListener('click', (e) => {
             e.stopPropagation();
-            showEditCommentPopup(comment, highlight, e.pageX, e.pageY);
+            // Only allow editing root comments without replies
+            if (!comment.root_id && !hasReply) {
+                showEditCommentPopup(comment, highlight, e.pageX, e.pageY);
+            }
         });
 
         try {
@@ -642,6 +987,13 @@
     }
 
     /**
+     * Trigger a page reload
+     */
+    function triggerReload() {
+        window.location.reload();
+    }
+
+    /**
      * Setup Server-Sent Events for live updates
      */
     function setupSSE() {
@@ -654,15 +1006,18 @@
 
         eventSource.addEventListener('file_updated', (event) => {
             console.log('File updated event received:', event.data);
-            // Reload the page to show updated content
-            window.location.reload();
+            triggerReload();
         });
 
         eventSource.addEventListener('comments_resolved', (event) => {
             console.log('Comments resolved event received:', event.data);
             const data = JSON.parse(event.data);
-            // Reload to show resolved comments removed
-            window.location.reload();
+            triggerReload();
+        });
+
+        eventSource.addEventListener('reload', (event) => {
+            console.log('Reload event received:', event.data);
+            triggerReload();
         });
 
         eventSource.onerror = (error) => {

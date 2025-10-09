@@ -2,6 +2,6 @@
 cmd = "go build -o ./tmp/bin/claude-review ."
 bin = "./tmp/bin/claude-review"
 args_bin = ["server"]
-include_ext = ["go"]
+include_ext = ["go", "html", "css", "js"]
 exclude_regex = ["_test\\.go"]
 stop_on_error = true

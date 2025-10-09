@@ -18,11 +18,13 @@ snippets to provide context.
 claude-review streamlines this process by enabling inline comments directly in the browser, similar to Atlassian
 Confluence or Google Docs. You can highlight any portion of the rendered Markdown and add contextual feedback. The same
 Claude Code instance that generated the plan can then fetch these comments, understand exactly what needs to change, and
-update the document automatically. Since the browser view refreshes on file changes, you see your edits immediately
-without any manual intervention.
+update the document automatically. Comments support threaded discussions - Claude Code can reply to your feedback to ask
+clarifying questions or confirm understanding before making changes. Since the browser view refreshes on file changes,
+you see your edits immediately without any manual intervention.
 
 This keeps you in flow: the agent retains full context of the plan it generated, your comments are precisely anchored to
-specific sections, and the feedback loop happens in seconds rather than minutes.
+specific sections, threaded discussions enable back-and-forth clarification, and the feedback loop happens in seconds
+rather than minutes.
 
 ## Requirements
 
@@ -64,8 +66,11 @@ export PATH="$HOME/.local/bin:$PATH"
 1. Ask Claude Code to create a Markdown document (e.g. `PLAN.md`)
 2. Run `/cr-review PLAN.md` in Claude Code and open the URL it returns
 3. Highlight portions of the document and add contextual comments
-4. Run `/cr-address PLAN.md` in your Claude Code session to get your comments addressed (the HTML page will refresh
-   automatically)
-5. Repeat steps 3-4 until the document matches your intent
+4. Run `/cr-address PLAN.md` in your Claude Code session
+   - Claude Code will see all comment threads and their replies
+   - It can discuss your feedback by replying to threads
+   - It can make changes and resolve threads when complete
+5. Continue the discussion by adding replies to comment threads in the browser
+6. Repeat steps 4-5 until the document matches your intent
 
 See [EXAMPLE](EXAMPLE.md) for a visual walkthrough of the workflow.
