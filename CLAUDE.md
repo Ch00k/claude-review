@@ -1,3 +1,5 @@
+Updated: 2025-10-09T16:30:00Z
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -11,8 +13,11 @@ claude-review is a lightweight companion for working on planning documents with 
 2. User runs `/cr-review <file>` slash command to start server and open document in browser
 3. User highlights portions of the rendered Markdown and adds comments
 4. User runs `/cr-address <file>` slash command in Claude Code to pull unresolved comments
-5. Claude Code addresses the comments and marks them as resolved
-6. Browser automatically reloads to show updated document
+5. Claude Code reviews comment threads and can either:
+   - Reply to threads to ask clarifying questions or discuss alternatives
+   - Make requested changes and resolve threads when complete
+6. User can reply to Claude's responses in the browser to continue the discussion
+7. Browser automatically reloads to show updated document and new replies
 
 ## Architecture
 
@@ -37,11 +42,14 @@ claude-review is a lightweight companion for working on planning documents with 
 ### Database Schema
 SQLite database stored at `~/.local/share/claude-review/comments.db`:
 - **projects**: Tracks registered project directories
-- **comments**: Stores inline comments with line ranges, selected text, resolved status
+- **comments**: Stores inline comments with line ranges, selected text, resolved status, threading support
+  - `root_id`: Foreign key to parent comment (NULL for root comments, enables threaded discussions)
+  - `author`: Name of comment author (user or agent name)
+  - `resolved_by`: Name of who resolved the thread
 
 ### Custom Slash Commands
 - `/cr-review` (in `slash-commands/cr-review.md`): Runs `claude-review review --file <file>` to start the server, register the project, and open the file URL in the browser
-- `/cr-address` (in `slash-commands/cr-address.md`): Runs `claude-review address --file <file>` to fetch unresolved comments, then instructs Claude Code to address them and mark them resolved
+- `/cr-address` (in `slash-commands/cr-address.md`): Runs `claude-review address --file <file>` to fetch unresolved comment threads with full conversation history. Instructs Claude Code to either reply to threads for discussion or make changes and resolve threads when requests are clear
 
 ## Development Commands
 
@@ -97,8 +105,10 @@ The server uses multiple mechanisms for real-time updates:
 - `claude-review server --status`: Check if daemon is running and show PID info
 - `claude-review register [--project <path>]`: Register a project directory (defaults to current directory)
 - `claude-review review --file <path>`: Start server, register project, and show file URL
-- `claude-review address --file <path>`: Output unresolved comments for file
+- `claude-review address --file <path>`: Output unresolved comment threads for file (grouped by conversation)
+- `claude-review reply --comment-id <id> --message <text>`: Reply to a comment thread
 - `claude-review resolve --file <path>`: Mark all comments as resolved for file
+- `claude-review resolve --comment-id <id>`: Mark a specific comment thread as resolved
 - `claude-review install`: Install slash commands to ~/.claude/commands/
 - `claude-review version`: Show version information
 

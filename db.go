@@ -25,15 +25,18 @@ type Project struct {
 }
 
 type Comment struct {
-	ID               int       `json:"id"`
-	ProjectDirectory string    `json:"project_directory"`
-	FilePath         string    `json:"file_path"`
-	LineStart        int       `json:"line_start"`
-	LineEnd          int       `json:"line_end"`
-	SelectedText     string    `json:"selected_text"`
-	CommentText      string    `json:"comment_text"`
-	Resolved         bool      `json:"resolved"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID               int        `json:"id"`
+	ProjectDirectory string     `json:"project_directory"`
+	FilePath         string     `json:"file_path"`
+	LineStart        *int       `json:"line_start,omitempty"`
+	LineEnd          *int       `json:"line_end,omitempty"`
+	SelectedText     string     `json:"selected_text"`
+	CommentText      string     `json:"comment_text"`
+	CreatedAt        time.Time  `json:"created_at"`
+	ResolvedAt       *time.Time `json:"resolved_at,omitempty"`
+	RootID           *int       `json:"root_id,omitempty"`
+	Author           string     `json:"author"`
+	ResolvedBy       *string    `json:"resolved_by,omitempty"`
 }
 
 var db *sql.DB
@@ -86,14 +89,20 @@ func initDB() error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		project_directory TEXT NOT NULL,
 		file_path TEXT NOT NULL,
-		line_start INTEGER NOT NULL,
-		line_end INTEGER NOT NULL,
-		selected_text TEXT NOT NULL,
+		line_start INTEGER,
+		line_end INTEGER,
+		selected_text TEXT,
 		comment_text TEXT NOT NULL,
-		resolved BOOLEAN DEFAULT 0,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		resolved_at TIMESTAMP,
+		root_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+		author TEXT CHECK(author IN ('user', 'agent')),
+		resolved_by TEXT,
 		FOREIGN KEY (project_directory) REFERENCES projects(directory)
 	);
+
+	CREATE INDEX IF NOT EXISTS idx_comments_lookup ON comments(project_directory, file_path, resolved_at, created_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_comments_thread ON comments(root_id, created_at);
 	`
 
 	logQuery(schema)
@@ -147,11 +156,36 @@ func getAllProjects() ([]Project, error) {
 }
 
 func createComment(c *Comment) error {
+	// Generate timestamp in Go
+	c.CreatedAt = time.Now()
+
 	query := `
-		INSERT INTO comments (project_directory, file_path, line_start, line_end, selected_text, comment_text)
-		VALUES (?, ?, ?, ?, ?, ?)`
-	logQuery(query, c.ProjectDirectory, c.FilePath, c.LineStart, c.LineEnd, c.SelectedText, c.CommentText)
-	result, err := db.Exec(query, c.ProjectDirectory, c.FilePath, c.LineStart, c.LineEnd, c.SelectedText, c.CommentText)
+		INSERT INTO comments (project_directory, file_path, line_start, line_end, selected_text, comment_text, root_id, author, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	logQuery(
+		query,
+		c.ProjectDirectory,
+		c.FilePath,
+		c.LineStart,
+		c.LineEnd,
+		c.SelectedText,
+		c.CommentText,
+		c.RootID,
+		c.Author,
+		c.CreatedAt,
+	)
+	result, err := db.Exec(
+		query,
+		c.ProjectDirectory,
+		c.FilePath,
+		c.LineStart,
+		c.LineEnd,
+		c.SelectedText,
+		c.CommentText,
+		c.RootID,
+		c.Author,
+		c.CreatedAt,
+	)
 	if err != nil {
 		return err
 	}
@@ -166,13 +200,22 @@ func createComment(c *Comment) error {
 }
 
 func getComments(projectDir, filePath string, resolved bool) ([]Comment, error) {
-	query := `
-		SELECT id, project_directory, file_path, line_start, line_end, selected_text, comment_text, resolved, created_at
-		FROM comments
-		WHERE project_directory = ? AND file_path = ? AND resolved = ?
-		ORDER BY line_start ASC`
-	logQuery(query, projectDir, filePath, resolved)
-	rows, err := db.Query(query, projectDir, filePath, resolved)
+	var query string
+	if resolved {
+		query = `
+			SELECT id, project_directory, file_path, line_start, line_end, selected_text, comment_text, created_at, resolved_at, root_id, author, resolved_by
+			FROM comments
+			WHERE project_directory = ? AND file_path = ? AND resolved_at IS NOT NULL
+			ORDER BY COALESCE(root_id, id) ASC, created_at ASC`
+	} else {
+		query = `
+			SELECT id, project_directory, file_path, line_start, line_end, selected_text, comment_text, created_at, resolved_at, root_id, author, resolved_by
+			FROM comments
+			WHERE project_directory = ? AND file_path = ? AND resolved_at IS NULL
+			ORDER BY COALESCE(root_id, id) ASC, created_at ASC`
+	}
+	logQuery(query, projectDir, filePath)
+	rows, err := db.Query(query, projectDir, filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +224,7 @@ func getComments(projectDir, filePath string, resolved bool) ([]Comment, error) 
 	var comments []Comment
 	for rows.Next() {
 		var c Comment
-		if err := rows.Scan(&c.ID, &c.ProjectDirectory, &c.FilePath, &c.LineStart, &c.LineEnd, &c.SelectedText, &c.CommentText, &c.Resolved, &c.CreatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.ProjectDirectory, &c.FilePath, &c.LineStart, &c.LineEnd, &c.SelectedText, &c.CommentText, &c.CreatedAt, &c.ResolvedAt, &c.RootID, &c.Author, &c.ResolvedBy); err != nil {
 			return nil, err
 		}
 		comments = append(comments, c)
@@ -212,8 +255,8 @@ func deleteComment(commentID string) error {
 func resolveComments(projectDir, filePath string) (int, error) {
 	query := `
 		UPDATE comments
-		SET resolved = 1
-		WHERE project_directory = ? AND file_path = ? AND resolved = 0`
+		SET resolved_at = CURRENT_TIMESTAMP, resolved_by = 'user'
+		WHERE project_directory = ? AND file_path = ? AND resolved_at IS NULL`
 	logQuery(query, projectDir, filePath)
 	result, err := db.Exec(query, projectDir, filePath)
 	if err != nil {
@@ -226,4 +269,60 @@ func resolveComments(projectDir, filePath string) (int, error) {
 	}
 
 	return int(count), nil
+}
+
+func getCommentByID(commentID int) (*Comment, error) {
+	query := `
+		SELECT id, project_directory, file_path, line_start, line_end, selected_text, comment_text, created_at, resolved_at, root_id, author, resolved_by
+		FROM comments
+		WHERE id = ?`
+	logQuery(query, commentID)
+
+	var c Comment
+	err := db.QueryRow(query, commentID).Scan(
+		&c.ID, &c.ProjectDirectory, &c.FilePath, &c.LineStart, &c.LineEnd,
+		&c.SelectedText, &c.CommentText, &c.CreatedAt,
+		&c.ResolvedAt, &c.RootID, &c.Author, &c.ResolvedBy,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
+func resolveThread(rootCommentID int, resolvedBy string) (int, error) {
+	query := `
+		UPDATE comments
+		SET resolved_at = CURRENT_TIMESTAMP, resolved_by = ?
+		WHERE (id = ? OR root_id = ?) AND resolved_at IS NULL`
+	logQuery(query, resolvedBy, rootCommentID, rootCommentID)
+	result, err := db.Exec(query, resolvedBy, rootCommentID, rootCommentID)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(count), nil
+}
+
+func hasReplies(commentID int) (bool, error) {
+	query := `
+		SELECT COUNT(*) FROM comments WHERE root_id = ?`
+	logQuery(query, commentID)
+
+	var count int
+	err := db.QueryRow(query, commentID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }

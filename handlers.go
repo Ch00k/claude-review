@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -288,31 +289,45 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "file_path is required", http.StatusBadRequest)
 		return
 	}
-	if comment.LineStart <= 0 {
-		http.Error(w, "line_start must be positive", http.StatusBadRequest)
-		return
+
+	// For root comments, line numbers and selected text are required
+	// For replies (root_id is set), they are optional
+	if comment.RootID == nil {
+		if comment.LineStart == nil || *comment.LineStart <= 0 {
+			http.Error(w, "line_start must be positive", http.StatusBadRequest)
+			return
+		}
+		if comment.LineEnd == nil || *comment.LineEnd <= 0 {
+			http.Error(w, "line_end must be positive", http.StatusBadRequest)
+			return
+		}
+		if *comment.LineEnd < *comment.LineStart {
+			http.Error(w, "line_end must be >= line_start", http.StatusBadRequest)
+			return
+		}
+		if comment.SelectedText == "" {
+			http.Error(w, "selected_text is required for root comments", http.StatusBadRequest)
+			return
+		}
 	}
-	if comment.LineEnd <= 0 {
-		http.Error(w, "line_end must be positive", http.StatusBadRequest)
-		return
-	}
-	if comment.LineEnd < comment.LineStart {
-		http.Error(w, "line_end must be >= line_start", http.StatusBadRequest)
-		return
-	}
-	if comment.SelectedText == "" {
-		http.Error(w, "selected_text is required", http.StatusBadRequest)
-		return
-	}
+
 	if comment.CommentText == "" {
 		http.Error(w, "comment_text is required", http.StatusBadRequest)
 		return
+	}
+
+	// Default author to 'user' if not provided (for API calls from web UI)
+	if comment.Author == "" {
+		comment.Author = "user"
 	}
 
 	if err := createComment(&comment); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Don't broadcast reload for comment creation - the frontend handles it locally
+	// Only broadcast for external changes (CLI resolve, file updates)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(comment); err != nil {
@@ -322,7 +337,25 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 
 func handleUpdateComment(w http.ResponseWriter, r *http.Request) {
 	// Extract comment ID from URL path
-	commentID := chi.URLParam(r, "id")
+	commentIDStr := chi.URLParam(r, "id")
+
+	// Parse comment ID
+	var commentID int
+	if _, err := fmt.Sscanf(commentIDStr, "%d", &commentID); err != nil {
+		http.Error(w, "Invalid comment ID", http.StatusBadRequest)
+		return
+	}
+
+	// Check if comment has replies
+	hasReply, err := hasReplies(commentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if hasReply {
+		http.Error(w, "Cannot edit comment with replies", http.StatusBadRequest)
+		return
+	}
 
 	var req struct {
 		CommentText string `json:"comment_text"`
@@ -333,7 +366,7 @@ func handleUpdateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := updateComment(commentID, req.CommentText); err != nil {
+	if err := updateComment(commentIDStr, req.CommentText); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -355,6 +388,47 @@ func handleDeleteComment(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"status": "deleted"}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func handleResolveThread(w http.ResponseWriter, r *http.Request) {
+	// Extract comment ID from URL path
+	commentIDStr := chi.URLParam(r, "id")
+
+	// Parse comment ID
+	var commentID int
+	if _, err := fmt.Sscanf(commentIDStr, "%d", &commentID); err != nil {
+		http.Error(w, "Invalid comment ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get comment to retrieve project_directory and file_path for SSE broadcast
+	comment, err := getCommentByID(commentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if comment == nil {
+		http.Error(w, "Comment not found", http.StatusNotFound)
+		return
+	}
+
+	// Resolve the thread (marked as resolved by 'user' since it's from web UI)
+	count, err := resolveThread(commentID, "user")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Don't broadcast reload for web UI resolution - the frontend handles it locally
+	// Only broadcast for CLI resolution (via notify endpoint)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "resolved",
+		"count":  count,
+	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

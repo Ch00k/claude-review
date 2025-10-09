@@ -171,6 +171,14 @@ li {
     background-color: #ffeb99;
 }
 
+.comment-highlight.has-replies {
+    cursor: default;
+}
+
+.comment-highlight.has-replies:hover {
+    background-color: #fff8c5;
+}
+
 /* Comment button (appears on text selection) */
 #comment-button {
     position: absolute;
@@ -178,7 +186,6 @@ li {
 }
 
 .comment-add-btn {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     font-size: 13px;
     font-weight: 500;
     padding: 4px;
@@ -216,7 +223,6 @@ li {
 }
 
 #comment-popup textarea {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     font-size: 14px;
     line-height: 1.5;
     border: 1px solid #d1d5da;
@@ -242,7 +248,6 @@ li {
 }
 
 .comment-btn {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     font-size: 14px;
     font-weight: 500;
     padding: 6px 12px;
@@ -299,6 +304,11 @@ li {
     max-height: 80vh;
 }
 
+#comment-panel.expanded-wide {
+    width: 900px;
+    max-height: 80vh;
+}
+
 #comment-panel.collapsed {
     width: auto;
     max-height: none;
@@ -316,6 +326,18 @@ li {
     display: none;
 }
 
+#comment-panel.collapsed .panel-resize-btn {
+    display: none;
+}
+
+#comment-panel.expanded-wide .comment-panel-list {
+    display: block;
+}
+
+#comment-panel.expanded-wide .comment-panel-header {
+    border-bottom: 1px solid #e1e4e8;
+}
+
 .comment-panel-header {
     padding: 12px 16px;
     border-bottom: 1px solid #e1e4e8;
@@ -323,12 +345,14 @@ li {
     justify-content: space-between;
     align-items: center;
     background: #f6f8fa;
-    cursor: pointer;
     user-select: none;
 }
 
-.comment-panel-header:hover {
-    background: #e1e4e8;
+.comment-panel-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
 }
 
 .comment-panel-header h3 {
@@ -338,10 +362,40 @@ li {
     color: #24292e;
 }
 
+.panel-resize-btn {
+    padding: 4px;
+    border: 1px solid #d1d5da;
+    border-radius: 3px;
+    background-color: #fafbfc;
+    color: #586069;
+    cursor: pointer;
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.panel-resize-btn:hover {
+    background-color: #e1e4e8;
+    color: #24292e;
+}
+
+.panel-icon {
+    display: none;
+}
+
+#comment-panel.expanded .panel-right-open {
+    display: block;
+}
+
+#comment-panel.expanded-wide .panel-left-open {
+    display: block;
+}
+
 .comment-count {
     background: #0366d6;
     color: white;
-    padding: 4px 10px;
+    padding: 2px 8px;
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
@@ -354,27 +408,54 @@ li {
     flex: 1;
 }
 
-.comment-panel-item {
-    padding: 12px 16px;
+.thread-item {
+    padding: 8px 12px;
     border-bottom: 1px solid #e1e4e8;
-    cursor: pointer;
-    display: flex;
-    gap: 12px;
+    /*cursor: default;*/
     transition: background-color 0.1s;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    position: relative;
 }
 
-.comment-panel-item:hover {
+.comment-badges {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.comment-status-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #0366d6;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+    flex-shrink: 0;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.thread-item:hover {
     background-color: #f6f8fa;
 }
 
-.comment-panel-item:last-child {
+.thread-item:last-child {
     border-bottom: none;
 }
 
-.comment-panel-item-number {
-    flex-shrink: 0;
+.thread-item-number {
     background: #fff8c5;
-    border: 2px solid #f9c513;
+    border: 1px solid #f9c513;
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -382,17 +463,17 @@ li {
     font-size: 11px;
     font-weight: 600;
     color: #24292e;
-    padding: 2px 8px;
+    padding: 1px 4px;
     min-width: 24px;
-    height: 20px;
+    flex-shrink: 0;
 }
 
-.comment-panel-item-content {
+.thread-item-content {
     flex: 1;
     min-width: 0;
 }
 
-.comment-panel-item-text {
+.thread-item-text {
     font-size: 13px;
     font-weight: 500;
     color: #24292e;
@@ -402,10 +483,101 @@ li {
     white-space: nowrap;
 }
 
-.comment-panel-item-comment {
+#comment-panel.expanded-wide .thread-item-text {
+    white-space: normal;
+    text-overflow: initial;
+}
+
+.thread-item-comment {
     font-size: 12px;
     color: #586069;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+#comment-panel.expanded-wide .thread-item-comment {
+    white-space: normal;
+    text-overflow: initial;
+}
+
+/* Thread styling */
+.thread-container {
+    border-bottom: 1px solid #e1e4e8;
+}
+
+.thread-container:last-child {
+    border-bottom: none;
+}
+
+.comment-root {
+    background-color: #f6f8fa;
+}
+
+.comment-reply {
+    background-color: #ffffff;
+    padding: 4px 12px 4px 32px;
+}
+
+.comment-author {
+    font-size: 11px;
+    font-weight: 600;
+    color: #0366d6;
+    /*margin-bottom: 1px;*/
+    text-transform: capitalize;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.comment-author.author-agent {
+    color: #d97757;
+}
+
+.comment-timestamp {
+    font-size: 10px;
+    font-weight: 400;
+    color: #6a737d;
+    text-transform: none;
+}
+
+.thread-replies {
+    display: block;
+}
+
+.comment-badge-btn {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.comment-badge-reply {
+    background-color: #ddf4ff;
+    border-color: #0969da;
+    color: #0969da;
+}
+
+.comment-badge-reply:hover {
+    background-color: #b6e3ff;
+    border-color: #0550ae;
+    color: #0550ae;
+}
+
+.comment-badge-resolve {
+    background-color: #dafbe1;
+    border-color: #1a7f37;
+    color: #1a7f37;
+}
+
+.comment-badge-resolve:hover {
+    background-color: #aceebb;
+    border-color: #116329;
+    color: #116329;
 }
