@@ -72,5 +72,3 @@ export PATH="$HOME/.local/bin:$PATH"
    - It can make changes and resolve threads when complete
 5. Continue the discussion by adding replies to comment threads in the browser
 6. Repeat steps 4-5 until the document matches your intent
-
-See [EXAMPLE](EXAMPLE.md) for a visual walkthrough of the workflow.
