@@ -2,7 +2,7 @@
 
 # claude-review
 
-claude-review is a lightweight companion for working on planning documents with Claude Code. It lets you review a
+**claude-review** is a lightweight companion for working on planning documents with Claude Code. It lets you review a
 Markdown plan in the browser, leave inline comments, and hand those comments back to the same Claude Code session that
 created the plan.
 
@@ -15,7 +15,7 @@ back and forth between reviewing the Markdown document and the Claude Code sessi
 back to the Claude Code session, and manually describe which sections need changes - often copying and pasting text
 snippets to provide context.
 
-claude-review streamlines this process by enabling inline comments directly in the browser, similar to Atlassian
+**claude-review** streamlines this process by enabling inline comments directly in the browser, similar to Atlassian
 Confluence or Google Docs. You can highlight any portion of the rendered Markdown and add contextual feedback. The same
 Claude Code instance that generated the plan can then fetch these comments, understand exactly what needs to change, and
 update the document automatically. Comments support threaded discussions - Claude Code can reply to your feedback to ask
@@ -57,7 +57,7 @@ The installer will:
    claude-review install
    ```
 
-Make sure `~/.local/bin` is in your `PATH`. If not:
+Make sure `~/.local/bin` is in your `PATH`:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
