@@ -336,7 +336,7 @@
     }
 
     function groupCommentsByThread() {
-        if (typeof comments === 'undefined' || !comments || comments.length === 0) {
+        if (typeof comments === 'undefined' || comments === null || comments.length === 0) {
             return [];
         }
 
@@ -565,6 +565,9 @@
             const savedReply = await response.json();
 
             // Add reply to comments array
+            if (typeof comments === 'undefined' || comments === null) {
+                comments = [];
+            }
             comments.push(savedReply);
 
             // Update comment panel to show new reply
@@ -597,7 +600,7 @@
             }
 
             // Remove the thread from the comments array (root + all replies)
-            if (typeof comments !== 'undefined' && comments) {
+            if (typeof comments !== 'undefined' && comments !== null) {
                 // Remove root comment and all its replies by filtering in reverse
                 for (let i = comments.length - 1; i >= 0; i--) {
                     const c = comments[i];
@@ -695,9 +698,10 @@
             const savedComment = await response.json();
 
             // Add comment to comments array
-            if (typeof comments !== 'undefined' && comments) {
-                comments.push(savedComment);
+            if (typeof comments === 'undefined' || comments === null) {
+                comments = [];
             }
+            comments.push(savedComment);
 
             // Find and highlight the text in the document
             highlightCommentByText(savedComment);
@@ -741,7 +745,7 @@
             const updatedComment = await response.json();
 
             // Update the comment in the comments array
-            if (typeof comments !== 'undefined' && comments) {
+            if (typeof comments !== 'undefined' && comments !== null) {
                 const index = comments.findIndex((c) => c.id === comment.id);
                 if (index !== -1) {
                     comments[index].comment_text = commentText;
@@ -788,7 +792,7 @@
             parent.removeChild(highlightElement);
 
             // Remove comment from comments array
-            if (typeof comments !== 'undefined' && comments) {
+            if (typeof comments !== 'undefined' && comments !== null) {
                 const index = comments.findIndex((c) => c.id === comment.id);
                 if (index !== -1) {
                     comments.splice(index, 1);
@@ -810,7 +814,7 @@
      * Check if a comment has replies
      */
     function commentHasReplies(commentId) {
-        if (typeof comments === 'undefined' || !comments) {
+        if (typeof comments === 'undefined' || comments === null) {
             return false;
         }
         return comments.some((c) => c.root_id === commentId);

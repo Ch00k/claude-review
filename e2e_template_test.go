@@ -46,7 +46,7 @@ func TestE2E_Template_JSONEncoding(t *testing.T) {
 
 	// Extract the <script> tag with template variables
 	// More flexible regex that allows for whitespace variations
-	scriptRegex := regexp.MustCompile(`(?s)<script>.*?const projectDir = (.+?);.*?const filePath = (.+?);.*?const comments = (.+?);.*?</script>`)
+	scriptRegex := regexp.MustCompile(`(?s)<script>.*?const projectDir = (.+?);.*?const filePath = (.+?);.*?let comments = (.+?);.*?</script>`)
 	matches := scriptRegex.FindStringSubmatch(bodyStr)
 	if matches == nil {
 		t.Logf("HTML body:\n%s\n", bodyStr)
@@ -104,7 +104,7 @@ func TestE2E_Template_EmptyComments(t *testing.T) {
 	bodyStr := string(body)
 
 	// Extract comments variable
-	scriptRegex := regexp.MustCompile(`const comments = (.+?);`)
+	scriptRegex := regexp.MustCompile(`let comments = (.+?);`)
 	matches := scriptRegex.FindStringSubmatch(bodyStr)
 	require.NotNil(t, matches, "Should find comments variable")
 	require.Len(t, matches, 2)
