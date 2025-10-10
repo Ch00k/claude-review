@@ -31,6 +31,13 @@ func initTemplates() error {
 		"urlquery":   url.QueryEscape,
 		"pathescape": escapePathComponents,
 		"base":       filepath.Base,
+		"json": func(v interface{}) (template.JS, error) {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return "", err
+			}
+			return template.JS(b), nil
+		},
 	}
 
 	// Parse templates from embedded FS

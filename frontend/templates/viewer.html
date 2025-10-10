@@ -19,9 +19,9 @@
 
         <script>
             // Template variables from Go backend
-            const projectDir = {{.ProjectDir}};
-            const filePath = {{.FilePath}};
-            const comments = {{.Comments}};
+            const projectDir = {{.ProjectDir | json}};
+            const filePath = {{.FilePath | json}};
+            const comments = {{.Comments | json}};
         </script>
 
         <!-- Application logic -->
