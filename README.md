@@ -2,29 +2,29 @@
 
 # claude-review
 
-**claude-review** is a lightweight companion for working on planning documents with Claude Code. It lets you review a
-Markdown plan in the browser, leave inline comments, and hand those comments back to the same Claude Code session that
-created the plan.
+**claude-review** is a lightweight companion for working on documents with Claude Code. It lets you review a Markdown
+documents in the browser, leave inline comments, and hand those comments back to the same Claude Code session that
+created the document.
 
-For a detailed overview of the architecture, see [ARCHITECTURE](ARCHITECTURE.md).
+![claude-review interface showing inline comments on a Markdown document](example.png)
 
 ## Motivation
 
-When working with Claude Code to generate planning documents in Markdown format, the typical workflow involves switching
-back and forth between reviewing the Markdown document and the Claude Code session. You read through the plan, switch
-back to the Claude Code session, and manually describe which sections need changes - often copying and pasting text
-snippets to provide context.
+When working with Claude Code to generate documents in Markdown format, the typical workflow involves switching back and
+forth between reviewing the Markdown document and the Claude Code session. You read through the document, switch back to
+the Claude Code session, and manually describe which sections need changes - often copying and pasting text snippets to
+provide context.
 
 **claude-review** streamlines this process by enabling inline comments directly in the browser, similar to Atlassian
 Confluence or Google Docs. You can highlight any portion of the rendered Markdown and add contextual feedback. The same
-Claude Code instance that generated the plan can then fetch these comments, understand exactly what needs to change, and
-update the document automatically. Comments support threaded discussions - Claude Code can reply to your feedback to ask
-clarifying questions or confirm understanding before making changes. Since the browser view refreshes on file changes,
-you see your edits immediately without any manual intervention.
+Claude Code instance that generated the document can then fetch these comments, understand exactly what needs to change,
+and update the document automatically. Comments support threaded discussions - Claude Code can reply to your feedback to
+ask clarifying questions or confirm understanding before making changes. Since the browser view refreshes on file
+changes, you see your edits immediately without any manual intervention.
 
-This keeps you in flow: the agent retains full context of the plan it generated, your comments are precisely anchored to
-specific sections, threaded discussions enable back-and-forth clarification, and the feedback loop happens in seconds
-rather than minutes.
+This keeps you in flow: the agent retains full context of the document it generated, your comments are precisely
+anchored to specific sections, threaded discussions enable back-and-forth clarification, and the feedback loop happens
+in seconds rather than minutes.
 
 ## Requirements
 
@@ -63,6 +63,7 @@ export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## How it fits into your workflow
+
 1. Ask Claude Code to create a Markdown document (e.g. `PLAN.md`)
 2. Run `/cr-review PLAN.md` in Claude Code and open the URL it returns
 3. Highlight portions of the document and add contextual comments
@@ -72,3 +73,7 @@ export PATH="$HOME/.local/bin:$PATH"
    - It can make changes and resolve threads when complete
 5. Continue the discussion by adding replies to comment threads in the browser
 6. Repeat steps 4-5 until the document matches your intent
+
+## Architecture
+
+For a detailed overview of the architecture, see [ARCHITECTURE](ARCHITECTURE.md).
