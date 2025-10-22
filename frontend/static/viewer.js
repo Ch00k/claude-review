@@ -140,35 +140,16 @@
     }
 
     function createCommentPanel() {
-        commentPanel = document.createElement('div');
-        commentPanel.id = 'comment-panel';
+        // Get the existing panel from HTML (no longer creating it dynamically)
+        commentPanel = document.getElementById('comment-panel');
+        if (!commentPanel) {
+            console.error('Comment panel not found in HTML');
+            return;
+        }
 
         // Restore panel state from localStorage, default to 'expanded'
         const savedState = localStorage.getItem('claude-review-panel-state') || 'expanded';
-        commentPanel.className = savedState;
-
-        commentPanel.innerHTML = `
-            <div class="comment-panel-header">
-                <div class="comment-panel-header-left">
-                    <h3>Comments</h3>
-                    <span class="comment-count">0</span>
-                </div>
-                <button class="panel-resize-btn" title="Resize panel">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="panel-icon panel-left-open">
-                        <rect width="18" height="18" x="3" y="3" rx="2"/>
-                        <path d="M9 3v18"/>
-                        <path d="m14 9 3 3-3 3"/>
-                    </svg>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="panel-icon panel-right-open">
-                        <rect width="18" height="18" x="3" y="3" rx="2"/>
-                        <path d="M15 3v18"/>
-                        <path d="m10 15-3-3 3-3"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="comment-panel-list"></div>
-        `;
-        document.body.appendChild(commentPanel);
+        commentPanel.className = savedState + ' ready';
 
         // Click on resize button to cycle through widths
         commentPanel.querySelector('.panel-resize-btn').addEventListener('click', (e) => {
@@ -235,6 +216,9 @@
 
             listContainer.appendChild(threadItem);
         });
+
+        // Show the panel now that it's populated
+        commentPanel.classList.add('ready');
     }
 
     function createCommentPanelItem(comment, isRoot, replyCount, isAwaitingResponse) {
@@ -251,35 +235,24 @@
             authorDiv.classList.add('author-agent');
         }
 
+        // Wrap author name and timestamp together
+        const authorInfoDiv = document.createElement('div');
+        authorInfoDiv.className = 'comment-author-info';
+
         const authorSpan = document.createElement('span');
         authorSpan.textContent = capitalizeFirst(comment.author);
-        authorDiv.appendChild(authorSpan);
+        authorInfoDiv.appendChild(authorSpan);
 
         if (comment.created_at) {
             const timeSpan = document.createElement('span');
             timeSpan.className = 'comment-timestamp';
             timeSpan.textContent = formatRelativeTime(comment.created_at);
-            authorDiv.appendChild(timeSpan);
+            authorInfoDiv.appendChild(timeSpan);
         }
 
-        contentDiv.appendChild(authorDiv);
+        authorDiv.appendChild(authorInfoDiv);
 
-        // Show selected text for root comments
-        if (isRoot && comment.selected_text) {
-            const textDiv = document.createElement('div');
-            textDiv.className = 'thread-item-text';
-            textDiv.textContent = `"${comment.selected_text}"`;
-            contentDiv.appendChild(textDiv);
-        }
-
-        const commentDiv = document.createElement('div');
-        commentDiv.className = 'thread-item-comment';
-        commentDiv.textContent = comment.comment_text;
-        contentDiv.appendChild(commentDiv);
-
-        item.appendChild(contentDiv);
-
-        // Add badges container for root comments
+        // Add badges to author row for root comments
         if (isRoot) {
             const badgesDiv = document.createElement('div');
             badgesDiv.className = 'comment-badges';
@@ -312,8 +285,31 @@
             });
             badgesDiv.appendChild(resolveBtn);
 
-            item.appendChild(badgesDiv);
+            authorDiv.appendChild(badgesDiv);
         }
+
+        contentDiv.appendChild(authorDiv);
+
+        // Show selected text for root comments
+        if (isRoot && comment.selected_text) {
+            const textDiv = document.createElement('div');
+            textDiv.className = 'thread-item-text';
+            textDiv.textContent = `"${comment.selected_text}"`;
+            contentDiv.appendChild(textDiv);
+        }
+
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'thread-item-comment';
+
+        // Store raw markdown in data attribute for editing
+        commentDiv.dataset.rawText = comment.comment_text;
+
+        // Use pre-rendered HTML from backend (all comments have this now)
+        commentDiv.innerHTML = comment.rendered_html;
+
+        contentDiv.appendChild(commentDiv);
+
+        item.appendChild(contentDiv);
 
         // Click to scroll to root comment highlight (only for root comments)
         if (isRoot) {
