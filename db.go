@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -32,6 +33,7 @@ type Comment struct {
 	LineEnd          *int       `json:"line_end,omitempty"`
 	SelectedText     string     `json:"selected_text"`
 	CommentText      string     `json:"comment_text"`
+	RenderedHTML     string     `json:"rendered_html,omitempty"` // Populated on-the-fly for web UI (not stored in DB)
 	CreatedAt        time.Time  `json:"created_at"`
 	ResolvedAt       *time.Time `json:"resolved_at,omitempty"`
 	RootID           *int       `json:"root_id,omitempty"`
@@ -325,4 +327,18 @@ func hasReplies(commentID int) (bool, error) {
 	}
 
 	return count > 0, nil
+}
+
+// renderCommentsAsHTML renders the comment_text field of each comment as HTML
+// and stores it in the RenderedHTML field for web UI display
+func renderCommentsAsHTML(comments []Comment) error {
+	for i := range comments {
+		rendered, err := RenderMarkdown([]byte(comments[i].CommentText))
+		if err != nil {
+			return fmt.Errorf("failed to render comment markdown: %w", err)
+		}
+		// Trim whitespace to avoid issues in inline JavaScript
+		comments[i].RenderedHTML = strings.TrimSpace(string(rendered))
+	}
+	return nil
 }

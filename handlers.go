@@ -165,6 +165,12 @@ func renderViewer(w http.ResponseWriter, r *http.Request, projectDir, filePath s
 		return
 	}
 
+	// Render comment markdown to HTML for web UI
+	if err := renderCommentsAsHTML(comments); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	data := map[string]interface{}{
 		"ProjectDir":  projectDir,
 		"FilePath":    filePath,
@@ -332,6 +338,14 @@ func handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Render comment markdown to HTML for web UI response
+	rendered, err := RenderMarkdown([]byte(comment.CommentText))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to render markdown: %v", err), http.StatusInternalServerError)
+		return
+	}
+	comment.RenderedHTML = strings.TrimSpace(string(rendered))
 
 	// Don't broadcast reload for comment creation - the frontend handles it locally
 	// Only broadcast for external changes (CLI resolve, file updates)

@@ -17,6 +17,51 @@
 
         <div id="markdown-content">{{.HTMLContent}}</div>
 
+        <!-- Comment panel (created in HTML to avoid blink on load) -->
+        <div id="comment-panel" class="expanded ready">
+            <div class="comment-panel-header">
+                <div class="comment-panel-header-left">
+                    <h3>Comments</h3>
+                    <span class="comment-count">0</span>
+                </div>
+                <button class="panel-resize-btn" title="Resize panel">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="panel-icon panel-left-open"
+                    >
+                        <rect width="18" height="18" x="3" y="3" rx="2" />
+                        <path d="M9 3v18" />
+                        <path d="m14 9 3 3-3 3" />
+                    </svg>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="panel-icon panel-right-open"
+                    >
+                        <rect width="18" height="18" x="3" y="3" rx="2" />
+                        <path d="M15 3v18" />
+                        <path d="m10 15-3-3 3-3" />
+                    </svg>
+                </button>
+            </div>
+            <div class="comment-panel-list"></div>
+        </div>
+
         <script>
             // Template variables from Go backend
             const projectDir = {{.ProjectDir | json}};
@@ -25,6 +70,6 @@
         </script>
 
         <!-- Application logic -->
-        <script src="/static/viewer.js"></script>
+        <script defer src="/static/viewer.js"></script>
     </body>
 </html>

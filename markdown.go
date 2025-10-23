@@ -186,3 +186,19 @@ func RenderMarkdownWithLineNumbers(source []byte) ([]byte, error) {
 
 	return buf.Bytes(), nil
 }
+
+// RenderMarkdown renders markdown to HTML without line number attributes
+func RenderMarkdown(source []byte) ([]byte, error) {
+	md := goldmark.New(
+		goldmark.WithRendererOptions(
+			html.WithUnsafe(), // Allow raw HTML
+		),
+	)
+
+	var buf bytes.Buffer
+	if err := md.Convert(source, &buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}

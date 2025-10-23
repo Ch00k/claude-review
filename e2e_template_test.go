@@ -46,7 +46,8 @@ func TestE2E_Template_JSONEncoding(t *testing.T) {
 
 	// Extract the <script> tag with template variables
 	// More flexible regex that allows for whitespace variations
-	scriptRegex := regexp.MustCompile(`(?s)<script>.*?const projectDir = (.+?);.*?const filePath = (.+?);.*?let comments = (.+?);.*?</script>`)
+	// Match until we hit a semicolon followed by whitespace and </script>
+	scriptRegex := regexp.MustCompile(`(?s)<script>.*?const projectDir = (.+?);.*?const filePath = (.+?);.*?let comments = (.+?);\s*</script>`)
 	matches := scriptRegex.FindStringSubmatch(bodyStr)
 	if matches == nil {
 		t.Logf("HTML body:\n%s\n", bodyStr)
