@@ -1,5 +1,3 @@
-// +build e2e
-
 package main_test
 
 import (
@@ -29,7 +27,7 @@ func TestE2E_SSE_Connection(t *testing.T) {
 
 	resp, err := http.Get(sseURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
@@ -59,7 +57,7 @@ func TestE2E_SSE_FileUpdate(t *testing.T) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Skip connection message
 	scanner := bufio.NewScanner(resp.Body)
@@ -73,7 +71,7 @@ func TestE2E_SSE_FileUpdate(t *testing.T) {
 		mdPath := filepath.Join(env.ProjectDir, "test.md")
 		content, _ := os.ReadFile(mdPath)
 		// Append to file to trigger write event
-		os.WriteFile(mdPath, append(content, []byte("\n\n## New Section\n")...), 0644)
+		_ = os.WriteFile(mdPath, append(content, []byte("\n\n## New Section\n")...), 0644)
 	}()
 
 	// Wait for file_updated event
@@ -108,7 +106,7 @@ func TestE2E_SSE_CommentsResolved(t *testing.T) {
 		"comment_text":      "To be resolved",
 	}
 	resp := env.postJSON(t, "/api/comments", comment)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// Connect to SSE endpoint
 	sseURL := fmt.Sprintf("%s/api/events?project_directory=%s&file_path=test.md",
@@ -117,7 +115,7 @@ func TestE2E_SSE_CommentsResolved(t *testing.T) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	sseResp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer sseResp.Body.Close()
+	defer func() { _ = sseResp.Body.Close() }()
 
 	// Skip connection message
 	scanner := bufio.NewScanner(sseResp.Body)
@@ -128,7 +126,7 @@ func TestE2E_SSE_CommentsResolved(t *testing.T) {
 	// Resolve comments in background
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		env.runCLI(t, "resolve", "--file", "test.md", "--project", env.ProjectDir)
+		_, _ = env.runCLI(t, "resolve", "--file", "test.md", "--project", env.ProjectDir)
 	}()
 
 	// Wait for comments_resolved event
@@ -160,7 +158,7 @@ func TestE2E_SSE_Broadcast(t *testing.T) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	sseResp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer sseResp.Body.Close()
+	defer func() { _ = sseResp.Body.Close() }()
 
 	// Skip connection message
 	scanner := bufio.NewScanner(sseResp.Body)
@@ -177,7 +175,7 @@ func TestE2E_SSE_Broadcast(t *testing.T) {
 			"event":             "comments_resolved",
 		}
 		resp := env.postJSON(t, "/api/events", broadcastData)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	// Wait for broadcast event
@@ -226,7 +224,7 @@ func TestE2E_SSE_MissingParams(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			resp, err := http.Get(tc.url)
 			require.NoError(t, err)
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			assert.Equal(t, tc.wants, resp.StatusCode)
 		})
@@ -247,12 +245,12 @@ func TestE2E_SSE_MultipleClients(t *testing.T) {
 	// Client 1
 	resp1, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp1.Body.Close()
+	defer func() { _ = resp1.Body.Close() }()
 
 	// Client 2
 	resp2, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	// Both should receive connection message
 	scanner1 := bufio.NewScanner(resp1.Body)
@@ -273,7 +271,7 @@ func TestE2E_SSE_MultipleClients(t *testing.T) {
 			"event":             "comments_resolved",
 		}
 		resp := env.postJSON(t, "/api/events", broadcastData)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	// Both clients should receive the event
@@ -333,11 +331,11 @@ func TestE2E_SSE_ClientFiltering(t *testing.T) {
 
 	resp1, err := client.Get(sseURL1)
 	require.NoError(t, err)
-	defer resp1.Body.Close()
+	defer func() { _ = resp1.Body.Close() }()
 
 	resp2, err := client.Get(sseURL2)
 	require.NoError(t, err)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	scanner1 := bufio.NewScanner(resp1.Body)
 	scanner2 := bufio.NewScanner(resp2.Body)
@@ -357,7 +355,7 @@ func TestE2E_SSE_ClientFiltering(t *testing.T) {
 			"event":             "comments_resolved",
 		}
 		resp := env.postJSON(t, "/api/events", broadcastData)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	received1 := false
@@ -409,7 +407,7 @@ func TestE2E_Broadcast_API(t *testing.T) {
 	}
 
 	resp := env.postJSON(t, "/api/events", broadcastData)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 

@@ -1,5 +1,3 @@
-// +build e2e
-
 package main_test
 
 import (
@@ -31,14 +29,14 @@ func TestE2E_Template_JSONEncoding(t *testing.T) {
 	}
 
 	resp := env.postJSON(t, "/api/comments", comment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	// Fetch the viewer page
 	url := fmt.Sprintf("%s/projects%s/test.md", env.BaseURL, env.ProjectDir)
 	viewerResp, err := http.Get(url)
 	require.NoError(t, err)
-	defer viewerResp.Body.Close()
+	defer func() { _ = viewerResp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, viewerResp.StatusCode)
 	body, _ := io.ReadAll(viewerResp.Body)
@@ -47,7 +45,9 @@ func TestE2E_Template_JSONEncoding(t *testing.T) {
 	// Extract the <script> tag with template variables
 	// More flexible regex that allows for whitespace variations
 	// Match until we hit a semicolon followed by whitespace and </script>
-	scriptRegex := regexp.MustCompile(`(?s)<script>.*?const projectDir = (.+?);.*?const filePath = (.+?);.*?let comments = (.+?);\s*</script>`)
+	scriptRegex := regexp.MustCompile(
+		`(?s)<script>.*?const projectDir = (.+?);.*?const filePath = (.+?);.*?let comments = (.+?);\s*</script>`,
+	)
 	matches := scriptRegex.FindStringSubmatch(bodyStr)
 	if matches == nil {
 		t.Logf("HTML body:\n%s\n", bodyStr)
@@ -98,7 +98,7 @@ func TestE2E_Template_EmptyComments(t *testing.T) {
 	url := fmt.Sprintf("%s/projects%s/test.md", env.BaseURL, env.ProjectDir)
 	viewerResp, err := http.Get(url)
 	require.NoError(t, err)
-	defer viewerResp.Body.Close()
+	defer func() { _ = viewerResp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, viewerResp.StatusCode)
 	body, _ := io.ReadAll(viewerResp.Body)

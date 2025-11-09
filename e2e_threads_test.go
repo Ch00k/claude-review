@@ -1,5 +1,3 @@
-// +build e2e
-
 package main_test
 
 import (
@@ -30,7 +28,7 @@ func TestE2E_ThreadedComments_BasicReply(t *testing.T) {
 	}
 
 	resp := env.postJSON(t, "/api/comments", rootComment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var created map[string]interface{}
@@ -39,7 +37,14 @@ func TestE2E_ThreadedComments_BasicReply(t *testing.T) {
 	t.Logf("Created root comment ID: %d", rootID)
 
 	// Reply to comment via CLI (as agent)
-	output, err := env.runCLI(t, "reply", "--comment-id", fmt.Sprintf("%d", rootID), "--message", "in_progress could work. We should also consider...")
+	output, err := env.runCLI(
+		t,
+		"reply",
+		"--comment-id",
+		fmt.Sprintf("%d", rootID),
+		"--message",
+		"in_progress could work. We should also consider...",
+	)
 	require.NoError(t, err)
 	assert.Contains(t, output, "Reply added")
 
@@ -68,13 +73,20 @@ func TestE2E_ThreadedComments_MultipleReplies(t *testing.T) {
 	}
 
 	resp := env.postJSON(t, "/api/comments", rootComment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	rootID := int(created["id"].(float64))
 
 	// Add agent reply
-	_, err = env.runCLI(t, "reply", "--comment-id", fmt.Sprintf("%d", rootID), "--message", "Rollback could be useful for failed deployments")
+	_, err = env.runCLI(
+		t,
+		"reply",
+		"--comment-id",
+		fmt.Sprintf("%d", rootID),
+		"--message",
+		"Rollback could be useful for failed deployments",
+	)
 	require.NoError(t, err)
 
 	// Add user reply (simulated via API)
@@ -86,7 +98,7 @@ func TestE2E_ThreadedComments_MultipleReplies(t *testing.T) {
 		"root_id":           rootID,
 	}
 	resp2 := env.postJSON(t, "/api/comments", userReply)
-	resp2.Body.Close()
+	_ = resp2.Body.Close()
 
 	// Verify thread shows all replies in order
 	output, err := env.runCLI(t, "address", "--file", "test.md", "--project", env.ProjectDir)
@@ -117,7 +129,7 @@ func TestE2E_ThreadedComments_ResolveByCommentID(t *testing.T) {
 		"author":            "user",
 	}
 	resp := env.postJSON(t, "/api/comments", rootComment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created1 map[string]interface{}
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created1))
 	rootID1 := int(created1["id"].(float64))
@@ -137,7 +149,7 @@ func TestE2E_ThreadedComments_ResolveByCommentID(t *testing.T) {
 		"author":            "user",
 	}
 	resp2 := env.postJSON(t, "/api/comments", rootComment2)
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 	var created2 map[string]interface{}
 	require.NoError(t, json.NewDecoder(resp2.Body).Decode(&created2))
 
@@ -176,7 +188,7 @@ func TestE2E_ThreadedComments_ResolveEntireThread(t *testing.T) {
 		"author":            "user",
 	}
 	resp := env.postJSON(t, "/api/comments", rootComment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	rootID := int(created["id"].(float64))
@@ -221,13 +233,13 @@ func TestE2E_ThreadedComments_ReplyValidation(t *testing.T) {
 			"author":            "user",
 		}
 		resp := env.postJSON(t, "/api/comments", rootComment)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		var created map[string]interface{}
 		require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 		rootID := int(created["id"].(float64))
 
 		// Create first reply
-		output, err := env.runCLI(t, "reply", "--comment-id", fmt.Sprintf("%d", rootID), "--message", "First reply")
+		_, err := env.runCLI(t, "reply", "--comment-id", fmt.Sprintf("%d", rootID), "--message", "First reply")
 		require.NoError(t, err)
 
 		// Extract reply ID from output or query database
@@ -240,13 +252,13 @@ func TestE2E_ThreadedComments_ReplyValidation(t *testing.T) {
 			"root_id":           rootID,
 		}
 		resp2 := env.postJSON(t, "/api/comments", replyComment)
-		defer resp2.Body.Close()
+		defer func() { _ = resp2.Body.Close() }()
 		var createdReply map[string]interface{}
 		require.NoError(t, json.NewDecoder(resp2.Body).Decode(&createdReply))
 		replyID := int(createdReply["id"].(float64))
 
 		// Try to reply to the reply (should fail - two-level structure only)
-		output, err = env.runCLI(t, "reply", "--comment-id", fmt.Sprintf("%d", replyID), "--message", "Reply to reply")
+		output, err := env.runCLI(t, "reply", "--comment-id", fmt.Sprintf("%d", replyID), "--message", "Reply to reply")
 		assert.Error(t, err)
 		assert.Contains(t, output, "can only reply to root comments")
 	})
@@ -268,7 +280,7 @@ func TestE2E_ThreadedComments_ResolveViaAPI(t *testing.T) {
 		"author":            "user",
 	}
 	resp := env.postJSON(t, "/api/comments", rootComment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	rootID := int(created["id"].(float64))
@@ -284,7 +296,7 @@ func TestE2E_ThreadedComments_ResolveViaAPI(t *testing.T) {
 
 	// Resolve thread via API
 	resolveResp := env.patchJSON(t, fmt.Sprintf("/api/comments/%d/resolve", rootID), map[string]string{})
-	defer resolveResp.Body.Close()
+	defer func() { _ = resolveResp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resolveResp.StatusCode)
 
 	// Verify thread is resolved
@@ -309,7 +321,7 @@ func TestE2E_ThreadedComments_CannotEditCommentWithReplies(t *testing.T) {
 		"author":            "user",
 	}
 	resp := env.postJSON(t, "/api/comments", rootComment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	var created map[string]interface{}
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	rootID := int(created["id"].(float64))
@@ -319,7 +331,7 @@ func TestE2E_ThreadedComments_CannotEditCommentWithReplies(t *testing.T) {
 		"comment_text": "Updated comment",
 	}
 	updateResp := env.patchJSON(t, fmt.Sprintf("/api/comments/%d", rootID), updatePayload)
-	updateResp.Body.Close()
+	_ = updateResp.Body.Close()
 	assert.Equal(t, http.StatusOK, updateResp.StatusCode)
 
 	// Add a reply
@@ -331,7 +343,7 @@ func TestE2E_ThreadedComments_CannotEditCommentWithReplies(t *testing.T) {
 		"comment_text": "Should not update",
 	}
 	updateResp2 := env.patchJSON(t, fmt.Sprintf("/api/comments/%d", rootID), updatePayload2)
-	defer updateResp2.Body.Close()
+	defer func() { _ = updateResp2.Body.Close() }()
 	assert.Equal(t, http.StatusBadRequest, updateResp2.StatusCode)
 
 	// Verify error message

@@ -1,5 +1,3 @@
-// +build e2e
-
 package main_test
 
 import (
@@ -95,12 +93,12 @@ func setupE2E(t *testing.T) *TestEnv {
 	t.Cleanup(func() {
 		if serverCmd.Process != nil {
 			// Send SIGINT for graceful shutdown (allows coverage to be written)
-			serverCmd.Process.Signal(os.Interrupt)
+			_ = serverCmd.Process.Signal(os.Interrupt)
 			// Give it a moment to flush coverage data
 			time.Sleep(100 * time.Millisecond)
-			serverCmd.Wait()
+			_ = serverCmd.Wait()
 		}
-		logWriter.Close()
+		_ = logWriter.Close()
 
 		// Print logs on failure
 		if t.Failed() {
@@ -148,7 +146,7 @@ func waitForServer(url string, timeout time.Duration) error {
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(url)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				return nil
 			}
@@ -245,7 +243,7 @@ func TestE2E_CommentWorkflow(t *testing.T) {
 	}
 
 	resp := env.postJSON(t, "/api/comments", comment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var created map[string]interface{}
@@ -265,7 +263,7 @@ func TestE2E_CommentWorkflow(t *testing.T) {
 	updateResp := env.patchJSON(t, fmt.Sprintf("/api/comments/%d", commentID), map[string]string{
 		"comment_text": "Updated feedback",
 	})
-	defer updateResp.Body.Close()
+	defer func() { _ = updateResp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, updateResp.StatusCode)
 
 	// Verify update in address
@@ -320,7 +318,7 @@ func TestE2E_MultipleComments(t *testing.T) {
 
 	for _, c := range comments {
 		resp := env.postJSON(t, "/api/comments", c)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	}
 
@@ -357,13 +355,13 @@ func TestE2E_DeleteComment(t *testing.T) {
 
 	resp := env.postJSON(t, "/api/comments", comment)
 	var created map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&created)
-	resp.Body.Close()
+	_ = json.NewDecoder(resp.Body).Decode(&created)
+	_ = resp.Body.Close()
 	commentID := int(created["id"].(float64))
 
 	// Delete comment
 	deleteResp := env.delete(t, fmt.Sprintf("/api/comments/%d", commentID))
-	defer deleteResp.Body.Close()
+	defer func() { _ = deleteResp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, deleteResp.StatusCode)
 
 	// Verify no longer appears
@@ -382,7 +380,7 @@ func TestE2E_WebInterface_HomePage(t *testing.T) {
 	// Visit home page
 	resp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
@@ -402,7 +400,7 @@ func TestE2E_WebInterface_FileViewer(t *testing.T) {
 
 	resp, err := http.Get(url)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
@@ -427,7 +425,7 @@ func TestE2E_WebInterface_DirectoryListing(t *testing.T) {
 
 	resp, err := http.Get(url)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
@@ -461,7 +459,7 @@ func TestE2E_PathTraversal_Security(t *testing.T) {
 		resp, err := http.Get(url)
 		require.NoError(t, err)
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		// Should NOT return the secret file
 		bodyStr := string(body)
@@ -487,7 +485,7 @@ func TestE2E_InvalidInput(t *testing.T) {
 			strings.NewReader("{invalid json}"),
 		)
 		require.NoError(t, err)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
@@ -499,7 +497,7 @@ func TestE2E_InvalidInput(t *testing.T) {
 		}
 
 		resp := env.postJSON(t, "/api/comments", comment)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// Should fail (either 400 or 500, depending on validation)
 		assert.NotEqual(t, http.StatusOK, resp.StatusCode)
@@ -509,7 +507,7 @@ func TestE2E_InvalidInput(t *testing.T) {
 		resp := env.patchJSON(t, "/api/comments/99999", map[string]string{
 			"comment_text": "Updated",
 		})
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// Should succeed (UPDATE affects 0 rows but doesn't error)
 		// This is acceptable behavior
@@ -518,7 +516,7 @@ func TestE2E_InvalidInput(t *testing.T) {
 
 	t.Run("delete non-existent comment", func(t *testing.T) {
 		resp := env.delete(t, "/api/comments/99999")
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// Should succeed (DELETE affects 0 rows but doesn't error)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -550,9 +548,9 @@ func TestE2E_MultipleFiles_Isolation(t *testing.T) {
 	}
 
 	resp1 := env.postJSON(t, "/api/comments", comment1)
-	resp1.Body.Close()
+	_ = resp1.Body.Close()
 	resp2 := env.postJSON(t, "/api/comments", comment2)
-	resp2.Body.Close()
+	_ = resp2.Body.Close()
 
 	// Verify test.md only shows its comment
 	output, err := env.runCLI(t, "address", "--file", "test.md", "--project", env.ProjectDir)
