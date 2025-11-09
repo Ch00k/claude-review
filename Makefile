@@ -18,10 +18,10 @@ lint: prettier
 	golangci-lint run --fix
 
 test:
-	gotestsum --format testname -- -tags e2e ./...
+	gotestsum --format testname -- ./...
 
 test-verbose:
-	gotestsum --format standard-verbose -- -tags e2e -v -count=1 ./...
+	gotestsum --format standard-verbose -- -v -count=1 ./...
 
 test-one:
 	@if [ -z "$(TEST)" ]; then \
@@ -32,8 +32,8 @@ test-one:
 
 test-ci:
 	rm -rf tmp/coverage
-	# Run all tests (unit + E2E) with coverage
-	go run gotest.tools/gotestsum@latest --format testname -- -tags e2e -coverprofile=coverage-unit.txt ./...
+	# Run all tests with coverage
+	go run gotest.tools/gotestsum@latest --format testname -- -coverprofile=coverage-unit.txt ./...
 	go tool covdata textfmt -i=tmp/coverage -o=coverage-e2e.txt
 	# Merge both coverage files
 	echo "mode: set" > coverage.txt

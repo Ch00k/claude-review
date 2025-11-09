@@ -1,5 +1,3 @@
-// +build e2e
-
 package main_test
 
 import (
@@ -20,14 +18,14 @@ func TestE2E_Daemon_StartAndStop(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Ensure daemon is stopped on test completion (even on failure)
 	t.Cleanup(func() {
-		env.runCLI(t, "server", "--stop")
+		_, _ = env.runCLI(t, "server", "--stop")
 		time.Sleep(500 * time.Millisecond)
 	})
 
@@ -77,14 +75,14 @@ func TestE2E_Daemon_Status(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
-		env.runCLI(t, "server", "--stop")
+		_, _ = env.runCLI(t, "server", "--stop")
 		time.Sleep(500 * time.Millisecond)
 	})
 
@@ -108,7 +106,7 @@ func TestE2E_Daemon_Status(t *testing.T) {
 	assert.Contains(t, output, "Log file:")
 
 	// Stop daemon for cleanup
-	env.runCLI(t, "server", "--stop")
+	_, _ = env.runCLI(t, "server", "--stop")
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -117,29 +115,29 @@ func TestE2E_Daemon_MultipleStartAttempts(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
-		env.runCLI(t, "server", "--stop")
+		_, _ = env.runCLI(t, "server", "--stop")
 		time.Sleep(500 * time.Millisecond)
 	})
 
 	// Start daemon
-	output, err := env.runCLI(t, "server", "--daemon")
+	_, err := env.runCLI(t, "server", "--daemon")
 	require.NoError(t, err)
 	require.NoError(t, waitForServer(env.BaseURL, 10*time.Second))
 
 	// Try to start again - should fail
-	output, err = env.runCLI(t, "server", "--daemon")
+	output, err := env.runCLI(t, "server", "--daemon")
 	assert.Error(t, err, "Second start should fail")
 	assert.Contains(t, output, "server is already running")
 
 	// Cleanup
-	env.runCLI(t, "server", "--stop")
+	_, _ = env.runCLI(t, "server", "--stop")
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -148,14 +146,14 @@ func TestE2E_Daemon_StalePIDFile(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
-		env.runCLI(t, "server", "--stop")
+		_, _ = env.runCLI(t, "server", "--stop")
 		time.Sleep(500 * time.Millisecond)
 	})
 
@@ -180,7 +178,7 @@ func TestE2E_Daemon_StalePIDFile(t *testing.T) {
 	assert.Contains(t, output, "Server started as daemon")
 
 	// Cleanup
-	env.runCLI(t, "server", "--stop")
+	_, _ = env.runCLI(t, "server", "--stop")
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -189,8 +187,8 @@ func TestE2E_Daemon_StopWhenNotRunning(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
@@ -205,14 +203,14 @@ func TestE2E_Daemon_LogFile(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
-		env.runCLI(t, "server", "--stop")
+		_, _ = env.runCLI(t, "server", "--stop")
 		time.Sleep(500 * time.Millisecond)
 	})
 
@@ -235,7 +233,7 @@ func TestE2E_Daemon_LogFile(t *testing.T) {
 	assert.NotEmpty(t, logStr, "Log file should not be empty")
 
 	// Cleanup
-	env.runCLI(t, "server", "--stop")
+	_, _ = env.runCLI(t, "server", "--stop")
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -244,14 +242,14 @@ func TestE2E_Daemon_GracefulShutdown(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
-		env.runCLI(t, "server", "--stop")
+		_, _ = env.runCLI(t, "server", "--stop")
 		time.Sleep(500 * time.Millisecond)
 	})
 
@@ -274,7 +272,7 @@ func TestE2E_Daemon_GracefulShutdown(t *testing.T) {
 		"comment_text":      "Test comment",
 	}
 	resp := env.postJSON(t, "/api/comments", comment)
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	require.Equal(t, 200, resp.StatusCode)
 
 	// Stop daemon gracefully
@@ -296,7 +294,7 @@ func TestE2E_Daemon_GracefulShutdown(t *testing.T) {
 	assert.Contains(t, output, "Test comment")
 
 	// Cleanup
-	env.runCLI(t, "server", "--stop")
+	_, _ = env.runCLI(t, "server", "--stop")
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -305,8 +303,8 @@ func TestE2E_Daemon_InvalidPIDFile(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
@@ -330,14 +328,14 @@ func TestE2E_Daemon_ProcessIsolation(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
-		env.runCLI(t, "server", "--stop")
+		_, _ = env.runCLI(t, "server", "--stop")
 		time.Sleep(500 * time.Millisecond)
 	})
 
@@ -365,6 +363,6 @@ func TestE2E_Daemon_ProcessIsolation(t *testing.T) {
 	assert.NoError(t, err, "Daemon should still be running")
 
 	// Cleanup
-	env.runCLI(t, "server", "--stop")
+	_, _ = env.runCLI(t, "server", "--stop")
 	time.Sleep(500 * time.Millisecond)
 }

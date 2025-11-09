@@ -1,5 +1,3 @@
-// +build e2e
-
 package main_test
 
 import (
@@ -30,7 +28,7 @@ func TestE2E_FileWatcher_NonExistentFile(t *testing.T) {
 	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Connection should succeed (SSE endpoint accepts request)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -48,7 +46,7 @@ func TestE2E_FileWatcher_NonExistentFile(t *testing.T) {
 	// Verify server is still responsive
 	healthResp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
-	healthResp.Body.Close()
+	_ = healthResp.Body.Close()
 	assert.Equal(t, http.StatusOK, healthResp.StatusCode)
 }
 
@@ -68,8 +66,8 @@ func TestE2E_FileWatcher_NoReadPermission(t *testing.T) {
 
 	// Ensure cleanup
 	t.Cleanup(func() {
-		os.Chmod(restrictedFile, 0644)
-		os.Remove(restrictedFile)
+		_ = os.Chmod(restrictedFile, 0644)
+		_ = os.Remove(restrictedFile)
 	})
 
 	// Try to connect SSE to restricted file
@@ -79,7 +77,7 @@ func TestE2E_FileWatcher_NoReadPermission(t *testing.T) {
 	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// SSE connection should handle gracefully
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -87,7 +85,7 @@ func TestE2E_FileWatcher_NoReadPermission(t *testing.T) {
 	// Verify server is still responsive
 	healthResp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
-	healthResp.Body.Close()
+	_ = healthResp.Body.Close()
 	assert.Equal(t, http.StatusOK, healthResp.StatusCode)
 }
 
@@ -117,7 +115,7 @@ func TestE2E_FileWatcher_MultipleFiles(t *testing.T) {
 		resp, err := client.Get(sseURL)
 		require.NoError(t, err)
 		responses[i] = resp
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	}
 
@@ -153,7 +151,7 @@ func TestE2E_FileWatcher_MultipleFiles(t *testing.T) {
 	// Verify server is still responsive after watching multiple files
 	healthResp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
-	healthResp.Body.Close()
+	_ = healthResp.Body.Close()
 	assert.Equal(t, http.StatusOK, healthResp.StatusCode)
 }
 
@@ -174,7 +172,7 @@ func TestE2E_FileWatcher_FileDeletion(t *testing.T) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Wait for watcher to initialize
 	time.Sleep(500 * time.Millisecond)
@@ -189,7 +187,7 @@ func TestE2E_FileWatcher_FileDeletion(t *testing.T) {
 	// Verify server is still responsive
 	healthResp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
-	healthResp.Body.Close()
+	_ = healthResp.Body.Close()
 	assert.Equal(t, http.StatusOK, healthResp.StatusCode)
 }
 
@@ -210,7 +208,7 @@ func TestE2E_FileWatcher_RapidChanges(t *testing.T) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	scanner := bufio.NewScanner(resp.Body)
 
@@ -224,7 +222,7 @@ func TestE2E_FileWatcher_RapidChanges(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 		for i := 0; i < 10; i++ {
 			content := fmt.Sprintf("# Update %d", i)
-			os.WriteFile(testFile, []byte(content), 0644)
+			_ = os.WriteFile(testFile, []byte(content), 0644)
 			time.Sleep(50 * time.Millisecond) // Rapid changes
 		}
 	}()
@@ -251,7 +249,7 @@ func TestE2E_FileWatcher_RapidChanges(t *testing.T) {
 	// Verify server is still responsive after rapid changes
 	healthResp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
-	healthResp.Body.Close()
+	_ = healthResp.Body.Close()
 	assert.Equal(t, http.StatusOK, healthResp.StatusCode)
 }
 
@@ -260,8 +258,8 @@ func TestE2E_FileWatcher_Cleanup(t *testing.T) {
 
 	// Kill the foreground server started by setupE2E
 	if env.ServerCmd.Process != nil {
-		env.ServerCmd.Process.Kill()
-		env.ServerCmd.Wait()
+		_ = env.ServerCmd.Process.Kill()
+		_ = env.ServerCmd.Wait()
 		time.Sleep(200 * time.Millisecond)
 	}
 
@@ -285,7 +283,7 @@ func TestE2E_FileWatcher_Cleanup(t *testing.T) {
 	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	resp.Body.Close() // Close connection immediately
+	_ = resp.Body.Close() // Close connection immediately
 
 	// Give watcher time to register
 	time.Sleep(300 * time.Millisecond)
@@ -306,11 +304,11 @@ func TestE2E_FileWatcher_Cleanup(t *testing.T) {
 	// Should be able to watch the same file again without issues
 	resp, err = client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	// Cleanup
-	env.runCLI(t, "server", "--stop")
+	_, _ = env.runCLI(t, "server", "--stop")
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -333,7 +331,7 @@ func TestE2E_FileWatcher_SameFileMultipleClients(t *testing.T) {
 		resp, err := client.Get(sseURL)
 		require.NoError(t, err)
 		responses[i] = resp
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		scanners[i] = bufio.NewScanner(resp.Body)
 		// Skip connection messages
@@ -347,7 +345,7 @@ func TestE2E_FileWatcher_SameFileMultipleClients(t *testing.T) {
 	go func() {
 		time.Sleep(500 * time.Millisecond)
 		content, _ := os.ReadFile(testFile)
-		os.WriteFile(testFile, append(content, []byte("\n\n## Multiple Watchers\n")...), 0644)
+		_ = os.WriteFile(testFile, append(content, []byte("\n\n## Multiple Watchers\n")...), 0644)
 	}()
 
 	// All clients should receive the event
@@ -401,7 +399,7 @@ func TestE2E_FileWatcher_DirectoryDeletion(t *testing.T) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(sseURL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Wait for watcher to initialize
 	time.Sleep(500 * time.Millisecond)
@@ -416,6 +414,6 @@ func TestE2E_FileWatcher_DirectoryDeletion(t *testing.T) {
 	// Verify server is still responsive
 	healthResp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
-	healthResp.Body.Close()
+	_ = healthResp.Body.Close()
 	assert.Equal(t, http.StatusOK, healthResp.StatusCode)
 }

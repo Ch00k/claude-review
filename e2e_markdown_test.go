@@ -1,5 +1,3 @@
-// +build e2e
-
 package main_test
 
 import (
@@ -47,7 +45,7 @@ Plain text at the end.`,
 
 	// Test 1: API response includes rendered_html
 	resp := env.postJSON(t, "/api/comments", comment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	body, _ := io.ReadAll(resp.Body)
@@ -84,7 +82,7 @@ Plain text at the end.`,
 	url := fmt.Sprintf("%s/projects%s/test.md", env.BaseURL, env.ProjectDir)
 	viewerResp, err := http.Get(url)
 	require.NoError(t, err)
-	defer viewerResp.Body.Close()
+	defer func() { _ = viewerResp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, viewerResp.StatusCode)
 	viewerBody, _ := io.ReadAll(viewerResp.Body)
@@ -131,7 +129,7 @@ func TestE2E_Markdown_PlainTextPreserved(t *testing.T) {
 	}
 
 	resp := env.postJSON(t, "/api/comments", comment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	body, _ := io.ReadAll(resp.Body)
@@ -163,7 +161,7 @@ func TestE2E_Markdown_SpecialCharacters(t *testing.T) {
 	}
 
 	resp := env.postJSON(t, "/api/comments", comment)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	body, _ := io.ReadAll(resp.Body)
@@ -180,7 +178,7 @@ func TestE2E_Markdown_SpecialCharacters(t *testing.T) {
 	url := fmt.Sprintf("%s/projects%s/test.md", env.BaseURL, env.ProjectDir)
 	viewerResp, err := http.Get(url)
 	require.NoError(t, err)
-	defer viewerResp.Body.Close()
+	defer func() { _ = viewerResp.Body.Close() }()
 
 	viewerBody, _ := io.ReadAll(viewerResp.Body)
 	viewerStr := string(viewerBody)
@@ -212,7 +210,7 @@ func TestE2E_Markdown_ThreadedComments(t *testing.T) {
 	}
 
 	rootResp := env.postJSON(t, "/api/comments", rootComment)
-	defer rootResp.Body.Close()
+	defer func() { _ = rootResp.Body.Close() }()
 	require.Equal(t, http.StatusOK, rootResp.StatusCode)
 
 	rootBody, _ := io.ReadAll(rootResp.Body)
@@ -233,7 +231,7 @@ func TestE2E_Markdown_ThreadedComments(t *testing.T) {
 	}
 
 	replyResp := env.postJSON(t, "/api/comments", reply)
-	defer replyResp.Body.Close()
+	defer func() { _ = replyResp.Body.Close() }()
 	require.Equal(t, http.StatusOK, replyResp.StatusCode)
 
 	replyBody, _ := io.ReadAll(replyResp.Body)
@@ -246,7 +244,7 @@ func TestE2E_Markdown_ThreadedComments(t *testing.T) {
 	url := fmt.Sprintf("%s/projects%s/test.md", env.BaseURL, env.ProjectDir)
 	viewerResp, err := http.Get(url)
 	require.NoError(t, err)
-	defer viewerResp.Body.Close()
+	defer func() { _ = viewerResp.Body.Close() }()
 
 	viewerBody, _ := io.ReadAll(viewerResp.Body)
 	viewerStr := string(viewerBody)

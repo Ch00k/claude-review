@@ -1,5 +1,3 @@
-// +build e2e
-
 package main_test
 
 import (
@@ -29,8 +27,8 @@ func TestE2E_CLI_Register(t *testing.T) {
 	t.Run("register without project flag uses current directory", func(t *testing.T) {
 		// Change to project directory
 		oldDir, _ := os.Getwd()
-		defer os.Chdir(oldDir)
-		os.Chdir(env.ProjectDir)
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(env.ProjectDir)
 
 		output, err := env.runCLI(t, "register")
 		require.NoError(t, err)
@@ -52,8 +50,8 @@ func TestE2E_CLI_Register(t *testing.T) {
 
 	t.Run("register with dot as project directory", func(t *testing.T) {
 		oldDir, _ := os.Getwd()
-		defer os.Chdir(oldDir)
-		os.Chdir(env.ProjectDir)
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(env.ProjectDir)
 
 		output, err := env.runCLI(t, "register", "--project", ".")
 		require.NoError(t, err)
@@ -99,8 +97,8 @@ func TestE2E_CLI_Address(t *testing.T) {
 	t.Run("address without project flag uses current directory", func(t *testing.T) {
 		env := setupE2E(t)
 		oldDir, _ := os.Getwd()
-		defer os.Chdir(oldDir)
-		os.Chdir(env.ProjectDir)
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(env.ProjectDir)
 
 		_, err := env.runCLI(t, "register")
 		require.NoError(t, err)
@@ -148,8 +146,8 @@ func TestE2E_CLI_Resolve(t *testing.T) {
 	t.Run("resolve without project flag uses current directory", func(t *testing.T) {
 		env := setupE2E(t)
 		oldDir, _ := os.Getwd()
-		defer os.Chdir(oldDir)
-		os.Chdir(env.ProjectDir)
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(env.ProjectDir)
 
 		_, err := env.runCLI(t, "register")
 		require.NoError(t, err)
@@ -186,7 +184,7 @@ func TestE2E_CLI_Review(t *testing.T) {
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
-		env.runCLI(t, "server", "--stop")
+		_, _ = env.runCLI(t, "server", "--stop")
 		time.Sleep(500 * time.Millisecond)
 	})
 
