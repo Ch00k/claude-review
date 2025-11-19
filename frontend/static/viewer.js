@@ -418,7 +418,17 @@
         `;
         document.body.appendChild(commentPopup);
 
-        // Event listeners will be set dynamically based on mode
+        // Add keyboard handler for textarea (Enter to submit, Shift+Enter for newline)
+        const textarea = document.getElementById('comment-text');
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const saveBtn = document.getElementById('comment-save');
+                if (saveBtn) {
+                    saveBtn.click();
+                }
+            }
+        });
 
         // Close popup when clicking outside (but not on text selection)
         document.addEventListener('mousedown', (e) => {

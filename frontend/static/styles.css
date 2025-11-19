@@ -216,21 +216,21 @@ li {
     z-index: 1000;
     background: white;
     border: 1px solid #d1d5da;
-    border-radius: 6px;
+    border-radius: 4px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    padding: 16px;
-    min-width: 320px;
+    padding: 8px;
+    min-width: 500px;
 }
 
 #comment-popup textarea {
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1.5;
     border: 1px solid #d1d5da;
     border-radius: 3px;
     padding: 8px;
     width: 100%;
-    min-height: 80px;
-    resize: vertical;
+    min-height: 200px;
+    resize: both;
     box-sizing: border-box;
 }
 
@@ -244,13 +244,13 @@ li {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 8px;
 }
 
 .comment-btn {
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 500;
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 3px;
     border: 1px solid #d1d5da;
     background-color: #fafbfc;
