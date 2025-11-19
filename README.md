@@ -3,7 +3,7 @@
 # claude-review
 
 **claude-review** is a lightweight companion for working on documents with Claude Code. It lets you review a Markdown
-documents in the browser, leave inline comments, and hand those comments back to the same Claude Code session that
+document in the browser, leave inline comments, and hand those comments back to the same Claude Code session that
 created the document.
 
 ![claude-review interface showing inline comments on a Markdown document](example.png)
@@ -25,6 +25,18 @@ changes, you see your edits immediately without any manual intervention.
 This keeps you in flow: the agent retains full context of the document it generated, your comments are precisely
 anchored to specific sections, threaded discussions enable back-and-forth clarification, and the feedback loop happens
 in seconds rather than minutes.
+
+## How it fits into your workflow
+
+1. Ask Claude Code to create a Markdown document (e.g. `PLAN.md`)
+2. Run `/cr-review PLAN.md` in Claude Code and open the URL it returns
+3. Highlight portions of the document and add contextual comments
+4. Run `/cr-address PLAN.md` in your Claude Code session
+   - Claude Code will see all comment threads and their replies
+   - It can discuss your feedback by replying to threads
+   - It can make changes and resolve threads when complete
+5. Continue the discussion by adding replies to comment threads in the browser
+6. Repeat steps 4-5 until the document matches your intent
 
 ## Requirements
 
@@ -62,17 +74,29 @@ Make sure `~/.local/bin` is in your `PATH`:
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-## How it fits into your workflow
+## Uninstallation
 
-1. Ask Claude Code to create a Markdown document (e.g. `PLAN.md`)
-2. Run `/cr-review PLAN.md` in Claude Code and open the URL it returns
-3. Highlight portions of the document and add contextual comments
-4. Run `/cr-address PLAN.md` in your Claude Code session
-   - Claude Code will see all comment threads and their replies
-   - It can discuss your feedback by replying to threads
-   - It can make changes and resolve threads when complete
-5. Continue the discussion by adding replies to comment threads in the browser
-6. Repeat steps 4-5 until the document matches your intent
+To completely remove claude-review from your system:
+
+1. Stop the daemon if it's running:
+   ```bash
+   claude-review server --stop
+   ```
+
+2. Uninstall the slash commands:
+   ```bash
+   claude-review uninstall
+   ```
+
+3. Remove the binary:
+   ```bash
+   rm ~/.local/bin/claude-review
+   ```
+
+4. (Optional) Remove the data directory (contains comments database, PID file, and logs):
+   ```bash
+   rm -rf ~/.local/share/claude-review
+   ```
 
 ## Architecture
 

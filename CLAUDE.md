@@ -1,4 +1,4 @@
-Updated: 2025-10-09T16:30:00Z
+Updated: 2025-11-19T15:36:00Z
 
 # CLAUDE.md
 
@@ -22,7 +22,7 @@ claude-review is a lightweight companion for working on planning documents with 
 ## Architecture
 
 ### Backend (Go)
-- **main.go**: Entry point with CLI commands (server, register, review, address, resolve, install, version)
+- **main.go**: Entry point with CLI commands (server, register, review, address, resolve, install, uninstall, version)
 - **handlers.go**: HTTP route handlers for web UI and REST API
 - **db.go**: SQLite database layer for projects and comments
 - **markdown.go**: Custom goldmark renderer that adds `data-line-start` and `data-line-end` attributes to HTML elements
@@ -31,7 +31,7 @@ claude-review is a lightweight companion for working on planning documents with 
 - **watcher.go**: File system watcher using fsnotify for automatic reload on file changes
 - **notify.go**: HTTP client for notifying server about resolved comments
 - **version.go**: Version information
-- **install.go**: Slash command installation logic
+- **install.go**: Slash command installation and uninstallation logic
 - **embed.go**: Embedded frontend assets
 
 ### Frontend
@@ -110,6 +110,7 @@ The server uses multiple mechanisms for real-time updates:
 - `claude-review resolve --file <path>`: Mark all comments as resolved for file
 - `claude-review resolve --comment-id <id>`: Mark a specific comment thread as resolved
 - `claude-review install`: Install slash commands to ~/.claude/commands/
+- `claude-review uninstall`: Uninstall slash commands from ~/.claude/commands/
 - `claude-review version`: Show version information
 
 ### Daemon Management

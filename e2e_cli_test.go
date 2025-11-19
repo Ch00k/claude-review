@@ -420,3 +420,216 @@ func TestE2E_CLI_Install(t *testing.T) {
 		}
 	})
 }
+
+// TestE2E_CLI_Uninstall tests the uninstall command for slash commands
+func TestE2E_CLI_Uninstall(t *testing.T) {
+	// Create isolated environment with custom home directory
+	tempDir := t.TempDir()
+	homeDir := filepath.Join(tempDir, "home")
+	require.NoError(t, os.MkdirAll(homeDir, 0755))
+
+	// Build binary
+	binaryPath := filepath.Join(tempDir, "claude-review")
+	buildCmd := exec.Command("go", "build", "-cover", "-o", binaryPath, ".")
+	require.NoError(t, buildCmd.Run())
+
+	// Helper to run install
+	runInstall := func() {
+		cmd := exec.Command(binaryPath, "install")
+		cmd.Env = append(os.Environ(),
+			"HOME="+homeDir,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		output, err := cmd.CombinedOutput()
+		require.NoError(t, err, "Install failed: %s", string(output))
+	}
+
+	// Helper to run uninstall
+	runUninstall := func() (string, error) {
+		cmd := exec.Command(binaryPath, "uninstall")
+		cmd.Env = append(os.Environ(),
+			"HOME="+homeDir,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		output, err := cmd.CombinedOutput()
+		return string(output), err
+	}
+
+	t.Run("uninstall removes installed slash commands", func(t *testing.T) {
+		// First install commands
+		runInstall()
+
+		commandsDir := filepath.Join(homeDir, ".claude", "commands")
+
+		// Verify files exist before uninstall
+		entries, err := os.ReadDir(commandsDir)
+		require.NoError(t, err)
+		require.Greater(t, len(entries), 0, "Should have installed files")
+
+		// Run uninstall
+		output, err := runUninstall()
+		require.NoError(t, err)
+
+		// Check output messages
+		assert.Contains(t, output, "Successfully uninstalled")
+		assert.Contains(t, output, "slash command")
+		assert.Contains(t, output, filepath.Join(homeDir, ".claude", "commands"))
+		assert.Contains(t, output, "/cr-review")
+		assert.Contains(t, output, "/cr-address")
+
+		// Verify files were removed
+		crReviewPath := filepath.Join(commandsDir, "cr-review.md")
+		_, err = os.Stat(crReviewPath)
+		assert.True(t, os.IsNotExist(err), "cr-review.md should be removed")
+
+		crAddressPath := filepath.Join(commandsDir, "cr-address.md")
+		_, err = os.Stat(crAddressPath)
+		assert.True(t, os.IsNotExist(err), "cr-address.md should be removed")
+	})
+
+	t.Run("uninstall when no commands are installed", func(t *testing.T) {
+		// Create fresh home directory
+		freshHome := filepath.Join(tempDir, "fresh-home-uninstall")
+		require.NoError(t, os.MkdirAll(freshHome, 0755))
+
+		cmd := exec.Command(binaryPath, "uninstall")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+
+		output, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+		outputStr := string(output)
+
+		// Should report that no commands were installed
+		assert.Contains(t, outputStr, "No slash commands were installed")
+	})
+
+	t.Run("uninstall is idempotent", func(t *testing.T) {
+		// Create fresh home and install
+		freshHome := filepath.Join(tempDir, "home-idempotent")
+		require.NoError(t, os.MkdirAll(freshHome, 0755))
+
+		// Install
+		cmd := exec.Command(binaryPath, "install")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		_, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+
+		// First uninstall
+		cmd = exec.Command(binaryPath, "uninstall")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		output1, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+		assert.Contains(t, string(output1), "Successfully uninstalled")
+
+		// Second uninstall (should succeed without error)
+		cmd = exec.Command(binaryPath, "uninstall")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		output2, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+		assert.Contains(t, string(output2), "No slash commands were installed")
+	})
+
+	t.Run("uninstall only removes managed commands", func(t *testing.T) {
+		// Create fresh home and install
+		freshHome := filepath.Join(tempDir, "home-selective")
+		require.NoError(t, os.MkdirAll(freshHome, 0755))
+
+		cmd := exec.Command(binaryPath, "install")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		_, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+
+		// Add a user's custom command
+		commandsDir := filepath.Join(freshHome, ".claude", "commands")
+		customFile := filepath.Join(commandsDir, "custom-command.md")
+		require.NoError(t, os.WriteFile(customFile, []byte("# Custom command"), 0644))
+
+		// Run uninstall
+		cmd = exec.Command(binaryPath, "uninstall")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		output, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+		assert.Contains(t, string(output), "Successfully uninstalled")
+
+		// Verify custom command still exists
+		_, err = os.Stat(customFile)
+		assert.NoError(t, err, "Custom command should not be removed")
+
+		// Verify managed commands are removed
+		crReviewPath := filepath.Join(commandsDir, "cr-review.md")
+		_, err = os.Stat(crReviewPath)
+		assert.True(t, os.IsNotExist(err), "cr-review.md should be removed")
+	})
+
+	t.Run("uninstall and reinstall works correctly", func(t *testing.T) {
+		// Create fresh home
+		freshHome := filepath.Join(tempDir, "home-reinstall")
+		require.NoError(t, os.MkdirAll(freshHome, 0755))
+
+		commandsDir := filepath.Join(freshHome, ".claude", "commands")
+
+		// Install
+		cmd := exec.Command(binaryPath, "install")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		_, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+
+		// Verify installed
+		crReviewPath := filepath.Join(commandsDir, "cr-review.md")
+		_, err = os.Stat(crReviewPath)
+		require.NoError(t, err, "Should be installed")
+
+		// Uninstall
+		cmd = exec.Command(binaryPath, "uninstall")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		_, err = cmd.CombinedOutput()
+		require.NoError(t, err)
+
+		// Verify uninstalled
+		_, err = os.Stat(crReviewPath)
+		assert.True(t, os.IsNotExist(err), "Should be uninstalled")
+
+		// Reinstall
+		cmd = exec.Command(binaryPath, "install")
+		cmd.Env = append(os.Environ(),
+			"HOME="+freshHome,
+			"GOCOVERDIR=tmp/coverage",
+		)
+		output, err := cmd.CombinedOutput()
+		require.NoError(t, err)
+		assert.Contains(t, string(output), "Successfully installed")
+
+		// Verify reinstalled
+		_, err = os.Stat(crReviewPath)
+		assert.NoError(t, err, "Should be reinstalled")
+
+		// Verify content is correct
+		content, err := os.ReadFile(crReviewPath)
+		require.NoError(t, err)
+		assert.Contains(t, string(content), "claude-review")
+	})
+}

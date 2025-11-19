@@ -61,3 +61,59 @@ func installSlashCommands() error {
 
 	return nil
 }
+
+func uninstallSlashCommands() error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	commandsDir := filepath.Join(homeDir, ".claude", "commands")
+
+	// Collect all slash command filenames from embedded FS
+	var toUninstall []string
+	err = fs.WalkDir(slashCommandsFS, "slash-commands", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() || !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+
+		toUninstall = append(toUninstall, filepath.Base(path))
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Remove each command file
+	var removed []string
+	for _, filename := range toUninstall {
+		commandPath := filepath.Join(commandsDir, filename)
+		err := os.Remove(commandPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// File doesn't exist, skip silently
+				continue
+			}
+			return fmt.Errorf("failed to remove %s: %w", filename, err)
+		}
+		removed = append(removed, filename)
+	}
+
+	if len(removed) == 0 {
+		fmt.Println("No slash commands were installed")
+		return nil
+	}
+
+	fmt.Printf("Successfully uninstalled %d slash command(s) from %s:\n", len(removed), commandsDir)
+	for _, name := range removed {
+		cmdName := strings.TrimSuffix(name, ".md")
+		fmt.Printf("  /%s\n", cmdName)
+	}
+
+	return nil
+}

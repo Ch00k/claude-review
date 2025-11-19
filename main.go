@@ -27,6 +27,7 @@ func main() {
 		fmt.Println("  reply                    Reply to a comment thread")
 		fmt.Println("  resolve                  Mark comments as resolved")
 		fmt.Println("  install                  Install slash commands")
+		fmt.Println("  uninstall                Uninstall slash commands")
 		fmt.Println("  version                  Show version information")
 		os.Exit(1)
 	}
@@ -48,6 +49,8 @@ func main() {
 		runResolve()
 	case "install":
 		runInstall()
+	case "uninstall":
+		runUninstall()
 	case "version":
 		runVersion()
 	default:
@@ -530,6 +533,12 @@ func runResolve() {
 func runInstall() {
 	if err := installSlashCommands(); err != nil {
 		log.Fatalf("Failed to install slash commands: %v", err)
+	}
+}
+
+func runUninstall() {
+	if err := uninstallSlashCommands(); err != nil {
+		log.Fatalf("Failed to uninstall slash commands: %v", err)
 	}
 }
 
