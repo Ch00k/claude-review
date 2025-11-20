@@ -750,17 +750,17 @@
 
             const updatedComment = await response.json();
 
-            // Update the comment in the comments array
+            // Update the comment in the comments array with all returned data
             if (typeof comments !== 'undefined' && comments !== null) {
                 const index = comments.findIndex((c) => c.id === comment.id);
                 if (index !== -1) {
-                    comments[index].comment_text = commentText;
+                    comments[index] = updatedComment;
                 }
             }
 
             // Update the highlight element
-            highlightElement.dataset.commentText = commentText;
-            highlightElement.title = commentText;
+            highlightElement.dataset.commentText = updatedComment.comment_text;
+            highlightElement.title = updatedComment.comment_text;
 
             // Update comment panel
             updateCommentPanel();

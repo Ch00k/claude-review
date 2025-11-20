@@ -392,8 +392,27 @@ func handleUpdateComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get the updated comment
+	comment, err := getCommentByID(commentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if comment == nil {
+		http.Error(w, "Comment not found", http.StatusNotFound)
+		return
+	}
+
+	// Render comment markdown to HTML for web UI response
+	rendered, err := RenderMarkdown([]byte(comment.CommentText))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to render markdown: %v", err), http.StatusInternalServerError)
+		return
+	}
+	comment.RenderedHTML = strings.TrimSpace(string(rendered))
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"status": "updated"}); err != nil {
+	if err := json.NewEncoder(w).Encode(comment); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

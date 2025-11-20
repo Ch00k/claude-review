@@ -509,9 +509,8 @@ func TestE2E_InvalidInput(t *testing.T) {
 		})
 		defer func() { _ = resp.Body.Close() }()
 
-		// Should succeed (UPDATE affects 0 rows but doesn't error)
-		// This is acceptable behavior
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		// Should return 404 when comment doesn't exist
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
 
 	t.Run("delete non-existent comment", func(t *testing.T) {
@@ -590,4 +589,51 @@ func TestE2E_NoComments(t *testing.T) {
 	output, err = env.runCLI(t, "resolve", "--file", "test.md", "--project", env.ProjectDir)
 	require.NoError(t, err)
 	assert.Contains(t, output, "No unresolved comments")
+}
+
+func TestE2E_UpdateComment_RenderedHTML(t *testing.T) {
+	env := setupE2E(t)
+
+	// Register project
+	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)
+	require.NoError(t, err)
+
+	// Create a comment with markdown content
+	comment := map[string]interface{}{
+		"project_directory": env.ProjectDir,
+		"file_path":         "test.md",
+		"line_start":        1,
+		"line_end":          1,
+		"selected_text":     "Test Document",
+		"comment_text":      "This is **bold** text",
+	}
+
+	resp := env.postJSON(t, "/api/comments", comment)
+	defer func() { _ = resp.Body.Close() }()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var created map[string]interface{}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
+	commentID := int(created["id"].(float64))
+
+	// Verify the created comment has rendered HTML
+	assert.Contains(t, created["rendered_html"], "<strong>bold</strong>")
+
+	// Update the comment with different markdown
+	updateResp := env.patchJSON(t, fmt.Sprintf("/api/comments/%d", commentID), map[string]string{
+		"comment_text": "This is *italic* text",
+	})
+	defer func() { _ = updateResp.Body.Close() }()
+	assert.Equal(t, http.StatusOK, updateResp.StatusCode)
+
+	var updated map[string]interface{}
+	require.NoError(t, json.NewDecoder(updateResp.Body).Decode(&updated))
+
+	// Verify the response includes all comment fields
+	assert.Equal(t, float64(commentID), updated["id"])
+	assert.Equal(t, "This is *italic* text", updated["comment_text"])
+
+	// Most importantly, verify the rendered HTML is updated
+	assert.Contains(t, updated["rendered_html"], "<em>italic</em>")
+	assert.NotContains(t, updated["rendered_html"], "<strong>bold</strong>")
 }
