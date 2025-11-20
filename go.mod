@@ -3,7 +3,6 @@ module claude-review
 go 1.25.1
 
 require (
-	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/mattn/go-sqlite3 v1.14.32
@@ -13,6 +12,7 @@ require (
 )
 
 require (
+	github.com/alecthomas/chroma/v2 v2.20.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
