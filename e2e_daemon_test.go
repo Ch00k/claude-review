@@ -20,13 +20,13 @@ func TestE2E_Daemon_StartAndStop(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Ensure daemon is stopped on test completion (even on failure)
 	t.Cleanup(func() {
 		_, _ = env.runCLI(t, "server", "--stop")
-		time.Sleep(500 * time.Millisecond)
+		_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 	})
 
 	// Start daemon
@@ -39,8 +39,7 @@ func TestE2E_Daemon_StartAndStop(t *testing.T) {
 	require.NoError(t, waitForServer(env.BaseURL, 10*time.Second))
 
 	// Verify PID file exists
-	pidFile := filepath.Join(env.DataDir, "server.pid")
-	pidData, err := os.ReadFile(pidFile)
+	pidData, err := os.ReadFile(env.PIDFile())
 	require.NoError(t, err, "PID file should exist")
 	pid, err := strconv.Atoi(strings.TrimSpace(string(pidData)))
 	require.NoError(t, err, "PID should be valid integer")
@@ -59,10 +58,11 @@ func TestE2E_Daemon_StartAndStop(t *testing.T) {
 	assert.Contains(t, output, strconv.Itoa(pid))
 
 	// Wait for daemon to stop
-	time.Sleep(500 * time.Millisecond)
+	require.NoError(t, waitForProcessStop(process, 2*time.Second), "Daemon should stop")
+	require.NoError(t, waitForPIDFileRemoved(env.PIDFile(), 2*time.Second), "PID file should be removed")
 
 	// Verify PID file is removed
-	_, err = os.ReadFile(pidFile)
+	_, err = os.ReadFile(env.PIDFile())
 	assert.True(t, os.IsNotExist(err), "PID file should be removed after stop")
 
 	// Verify process is not running
@@ -77,13 +77,13 @@ func TestE2E_Daemon_Status(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
 		_, _ = env.runCLI(t, "server", "--stop")
-		time.Sleep(500 * time.Millisecond)
+		_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 	})
 
 	// Check status when not running
@@ -107,7 +107,7 @@ func TestE2E_Daemon_Status(t *testing.T) {
 
 	// Stop daemon for cleanup
 	_, _ = env.runCLI(t, "server", "--stop")
-	time.Sleep(500 * time.Millisecond)
+	_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 }
 
 func TestE2E_Daemon_MultipleStartAttempts(t *testing.T) {
@@ -117,13 +117,13 @@ func TestE2E_Daemon_MultipleStartAttempts(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
 		_, _ = env.runCLI(t, "server", "--stop")
-		time.Sleep(500 * time.Millisecond)
+		_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 	})
 
 	// Start daemon
@@ -138,7 +138,7 @@ func TestE2E_Daemon_MultipleStartAttempts(t *testing.T) {
 
 	// Cleanup
 	_, _ = env.runCLI(t, "server", "--stop")
-	time.Sleep(500 * time.Millisecond)
+	_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 }
 
 func TestE2E_Daemon_StalePIDFile(t *testing.T) {
@@ -148,19 +148,18 @@ func TestE2E_Daemon_StalePIDFile(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
 		_, _ = env.runCLI(t, "server", "--stop")
-		time.Sleep(500 * time.Millisecond)
+		_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 	})
 
 	// Create a stale PID file with a non-existent PID
-	pidFile := filepath.Join(env.DataDir, "server.pid")
 	stalePID := 99999
-	err := os.WriteFile(pidFile, []byte(strconv.Itoa(stalePID)), 0644)
+	err := os.WriteFile(env.PIDFile(), []byte(strconv.Itoa(stalePID)), 0644)
 	require.NoError(t, err)
 
 	// Check status - should detect stale PID file and clean it up
@@ -169,7 +168,7 @@ func TestE2E_Daemon_StalePIDFile(t *testing.T) {
 	assert.Contains(t, output, "Server is not running")
 
 	// Verify PID file was cleaned up
-	_, err = os.ReadFile(pidFile)
+	_, err = os.ReadFile(env.PIDFile())
 	assert.True(t, os.IsNotExist(err), "Stale PID file should be removed")
 
 	// Should be able to start server now
@@ -179,7 +178,7 @@ func TestE2E_Daemon_StalePIDFile(t *testing.T) {
 
 	// Cleanup
 	_, _ = env.runCLI(t, "server", "--stop")
-	time.Sleep(500 * time.Millisecond)
+	_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 }
 
 func TestE2E_Daemon_StopWhenNotRunning(t *testing.T) {
@@ -189,7 +188,7 @@ func TestE2E_Daemon_StopWhenNotRunning(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Try to stop when no server is running
@@ -205,13 +204,13 @@ func TestE2E_Daemon_LogFile(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
 		_, _ = env.runCLI(t, "server", "--stop")
-		time.Sleep(500 * time.Millisecond)
+		_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 	})
 
 	// Start daemon
@@ -234,7 +233,7 @@ func TestE2E_Daemon_LogFile(t *testing.T) {
 
 	// Cleanup
 	_, _ = env.runCLI(t, "server", "--stop")
-	time.Sleep(500 * time.Millisecond)
+	_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 }
 
 func TestE2E_Daemon_GracefulShutdown(t *testing.T) {
@@ -244,13 +243,13 @@ func TestE2E_Daemon_GracefulShutdown(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
 		_, _ = env.runCLI(t, "server", "--stop")
-		time.Sleep(500 * time.Millisecond)
+		_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 	})
 
 	// Register project and create comment
@@ -281,7 +280,7 @@ func TestE2E_Daemon_GracefulShutdown(t *testing.T) {
 	assert.Contains(t, output, "Sent SIGTERM")
 
 	// Wait for shutdown
-	time.Sleep(500 * time.Millisecond)
+	_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 
 	// Restart daemon
 	_, err = env.runCLI(t, "server", "--daemon")
@@ -295,7 +294,7 @@ func TestE2E_Daemon_GracefulShutdown(t *testing.T) {
 
 	// Cleanup
 	_, _ = env.runCLI(t, "server", "--stop")
-	time.Sleep(500 * time.Millisecond)
+	_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 }
 
 func TestE2E_Daemon_InvalidPIDFile(t *testing.T) {
@@ -305,12 +304,11 @@ func TestE2E_Daemon_InvalidPIDFile(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Create a PID file with invalid content
-	pidFile := filepath.Join(env.DataDir, "server.pid")
-	err := os.WriteFile(pidFile, []byte("not-a-number"), 0644)
+	err := os.WriteFile(env.PIDFile(), []byte("not-a-number"), 0644)
 	require.NoError(t, err)
 
 	// Status should handle invalid PID gracefully
@@ -330,13 +328,13 @@ func TestE2E_Daemon_ProcessIsolation(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
 		_, _ = env.runCLI(t, "server", "--stop")
-		time.Sleep(500 * time.Millisecond)
+		_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 	})
 
 	// Start daemon
@@ -345,8 +343,7 @@ func TestE2E_Daemon_ProcessIsolation(t *testing.T) {
 	require.NoError(t, waitForServer(env.BaseURL, 10*time.Second))
 
 	// Read PID
-	pidFile := filepath.Join(env.DataDir, "server.pid")
-	pidData, err := os.ReadFile(pidFile)
+	pidData, err := os.ReadFile(env.PIDFile())
 	require.NoError(t, err)
 	daemonPID, err := strconv.Atoi(strings.TrimSpace(string(pidData)))
 	require.NoError(t, err)
@@ -355,14 +352,13 @@ func TestE2E_Daemon_ProcessIsolation(t *testing.T) {
 	testPID := os.Getpid()
 	assert.NotEqual(t, testPID, daemonPID, "Daemon should run in separate process")
 
-	// Verify daemon is still running after we continue
-	time.Sleep(100 * time.Millisecond)
+	// Verify daemon is running
 	process, err := os.FindProcess(daemonPID)
 	require.NoError(t, err)
 	err = process.Signal(syscall.Signal(0))
-	assert.NoError(t, err, "Daemon should still be running")
+	assert.NoError(t, err, "Daemon should be running")
 
 	// Cleanup
 	_, _ = env.runCLI(t, "server", "--stop")
-	time.Sleep(500 * time.Millisecond)
+	_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 }

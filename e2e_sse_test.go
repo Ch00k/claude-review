@@ -59,20 +59,21 @@ func TestE2E_SSE_FileUpdate(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	// Skip connection message
-	scanner := bufio.NewScanner(resp.Body)
-	for i := 0; i < 3; i++ {
-		scanner.Scan()
-	}
+	// Wait for SSE connection to be ready
+	require.NoError(t, waitForSSEConnected(resp, 3*time.Second))
 
-	// Modify file to trigger file watcher
+	scanner := bufio.NewScanner(resp.Body)
+
+	// Trigger file modification once SSE is connected
+	ready := make(chan struct{})
 	go func() {
-		time.Sleep(500 * time.Millisecond)
+		<-ready
 		mdPath := filepath.Join(env.ProjectDir, "test.md")
 		content, _ := os.ReadFile(mdPath)
 		// Append to file to trigger write event
 		_ = os.WriteFile(mdPath, append(content, []byte("\n\n## New Section\n")...), 0644)
 	}()
+	close(ready)
 
 	// Wait for file_updated event
 	eventReceived := false
@@ -125,7 +126,6 @@ func TestE2E_SSE_CommentsResolved(t *testing.T) {
 
 	// Resolve comments in background
 	go func() {
-		time.Sleep(500 * time.Millisecond)
 		_, _ = env.runCLI(t, "resolve", "--file", "test.md", "--project", env.ProjectDir)
 	}()
 
@@ -168,7 +168,6 @@ func TestE2E_SSE_Broadcast(t *testing.T) {
 
 	// Send broadcast via API
 	go func() {
-		time.Sleep(500 * time.Millisecond)
 		broadcastData := map[string]interface{}{
 			"project_directory": env.ProjectDir,
 			"file_path":         "test.md",
@@ -264,7 +263,6 @@ func TestE2E_SSE_MultipleClients(t *testing.T) {
 
 	// Broadcast event
 	go func() {
-		time.Sleep(500 * time.Millisecond)
 		broadcastData := map[string]interface{}{
 			"project_directory": env.ProjectDir,
 			"file_path":         "test.md",
@@ -348,7 +346,6 @@ func TestE2E_SSE_ClientFiltering(t *testing.T) {
 
 	// Broadcast event only to test.md
 	go func() {
-		time.Sleep(500 * time.Millisecond)
 		broadcastData := map[string]interface{}{
 			"project_directory": env.ProjectDir,
 			"file_path":         "test.md", // Only test.md

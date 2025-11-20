@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -10,12 +11,39 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var sharedBinaryPath string
+
+func TestMain(m *testing.M) {
+	// Build the instrumented binary once before running all tests
+	tempDir, err := os.MkdirTemp("", "claude-review-test-binary-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create temp dir: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() { _ = os.RemoveAll(tempDir) }()
+
+	sharedBinaryPath = filepath.Join(tempDir, "claude-review")
+	fmt.Printf("Building instrumented binary to %s\n", sharedBinaryPath)
+	buildCmd := exec.Command("go", "build", "-cover", "-o", sharedBinaryPath, ".")
+	buildOutput, err := buildCmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Build failed: %v\nOutput: %s\n", err, buildOutput)
+		os.Exit(1)
+	}
+
+	// Run tests
+	exitCode := m.Run()
+
+	os.Exit(exitCode)
+}
 
 type TestEnv struct {
 	ServerCmd  *exec.Cmd
@@ -28,6 +56,10 @@ type TestEnv struct {
 	LogFile    string
 }
 
+func (env *TestEnv) PIDFile() string {
+	return filepath.Join(env.DataDir, "server.pid")
+}
+
 func setupE2E(t *testing.T) *TestEnv {
 	t.Helper()
 
@@ -35,7 +67,6 @@ func setupE2E(t *testing.T) *TestEnv {
 	tempDir := t.TempDir()
 	dataDir := filepath.Join(tempDir, "data")
 	projectDir := filepath.Join(tempDir, "project")
-	binaryPath := filepath.Join(tempDir, "claude-review")
 
 	require.NoError(t, os.MkdirAll(dataDir, 0755))
 	require.NoError(t, os.MkdirAll(projectDir, 0755))
@@ -43,14 +74,9 @@ func setupE2E(t *testing.T) *TestEnv {
 	// Create test markdown files
 	createTestMarkdownFiles(t, projectDir)
 
-	// Build the binary with coverage instrumentation
-	t.Logf("Building instrumented binary to %s", binaryPath)
-	buildCmd := exec.Command("go", "build", "-cover", "-o", binaryPath, ".")
-	buildOutput, err := buildCmd.CombinedOutput()
-	if err != nil {
-		t.Logf("Build output: %s", buildOutput)
-	}
-	require.NoError(t, err, "Failed to build binary")
+	// Use the shared pre-built binary
+	binaryPath := sharedBinaryPath
+	require.NotEmpty(t, binaryPath, "Shared binary path not set")
 
 	// Start server
 	port := "14779"
@@ -94,8 +120,7 @@ func setupE2E(t *testing.T) *TestEnv {
 		if serverCmd.Process != nil {
 			// Send SIGINT for graceful shutdown (allows coverage to be written)
 			_ = serverCmd.Process.Signal(os.Interrupt)
-			// Give it a moment to flush coverage data
-			time.Sleep(100 * time.Millisecond)
+			// Wait for process to exit and flush coverage data
 			_ = serverCmd.Wait()
 		}
 		_ = logWriter.Close()
@@ -151,9 +176,57 @@ func waitForServer(url string, timeout time.Duration) error {
 				return nil
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(25 * time.Millisecond)
 	}
 	return fmt.Errorf("server did not start within %v", timeout)
+}
+
+// waitForProcessStop waits for a process to stop, checking with syscall.Signal(0)
+func waitForProcessStop(process *os.Process, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		err := process.Signal(syscall.Signal(0))
+		if err != nil {
+			// Process is not running
+			return nil
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	return fmt.Errorf("process did not stop within %v", timeout)
+}
+
+// waitForPIDFileRemoved waits for a PID file to be removed
+func waitForPIDFileRemoved(pidFile string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		_, err := os.ReadFile(pidFile)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	return fmt.Errorf("PID file was not removed within %v", timeout)
+}
+
+// waitForSSEConnected reads from an SSE response until the "connected" event is received
+func waitForSSEConnected(resp *http.Response, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	scanner := bufio.NewScanner(resp.Body)
+
+	for time.Now().Before(deadline) {
+		if !scanner.Scan() {
+			return fmt.Errorf("SSE connection closed before receiving connected event")
+		}
+		line := scanner.Text()
+		if strings.Contains(line, "event: connected") {
+			// Read the data line that follows
+			scanner.Scan()
+			return nil
+		}
+		// Add small sleep to avoid tight loop
+		time.Sleep(10 * time.Millisecond)
+	}
+	return fmt.Errorf("did not receive connected event within %v", timeout)
 }
 
 func (env *TestEnv) runCLI(t *testing.T, args ...string) (string, error) {

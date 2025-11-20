@@ -185,7 +185,7 @@ func TestE2E_CLI_Review(t *testing.T) {
 	// Ensure daemon is stopped on test completion
 	t.Cleanup(func() {
 		_, _ = env.runCLI(t, "server", "--stop")
-		time.Sleep(500 * time.Millisecond)
+		_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 	})
 
 	t.Run("review without file flag shows error", func(t *testing.T) {

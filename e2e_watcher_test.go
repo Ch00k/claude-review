@@ -33,15 +33,11 @@ func TestE2E_FileWatcher_NonExistentFile(t *testing.T) {
 	// Connection should succeed (SSE endpoint accepts request)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	// Read initial connection message
-	scanner := bufio.NewScanner(resp.Body)
-	scanner.Scan()
-	line := scanner.Text()
-	assert.Contains(t, line, "event: connected")
+	// Wait for SSE connection to be ready
+	require.NoError(t, waitForSSEConnected(resp, 3*time.Second))
 
 	// File watcher should handle the error internally
 	// Server should not crash and connection should stay alive
-	time.Sleep(500 * time.Millisecond)
 
 	// Verify server is still responsive
 	healthResp, err := http.Get(env.BaseURL + "/")
@@ -119,9 +115,7 @@ func TestE2E_FileWatcher_MultipleFiles(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	}
 
-	// Give watchers time to initialize
-	time.Sleep(500 * time.Millisecond)
-
+	// Watchers are initialized once SSE connections are established
 	// Modify file 2 - only its watcher should trigger
 	err = os.WriteFile(file2, []byte("# File 2 Updated"), 0644)
 	require.NoError(t, err)
@@ -174,17 +168,14 @@ func TestE2E_FileWatcher_FileDeletion(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	// Wait for watcher to initialize
-	time.Sleep(500 * time.Millisecond)
+	// Wait for SSE connection and watcher to initialize
+	require.NoError(t, waitForSSEConnected(resp, 3*time.Second))
 
 	// Delete the file while it's being watched
 	err = os.Remove(testFile)
 	require.NoError(t, err)
 
-	// Watcher should handle deletion gracefully
-	time.Sleep(500 * time.Millisecond)
-
-	// Verify server is still responsive
+	// Watcher should handle deletion gracefully - verify server is still responsive
 	healthResp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
 	_ = healthResp.Body.Close()
@@ -217,9 +208,8 @@ func TestE2E_FileWatcher_RapidChanges(t *testing.T) {
 		scanner.Scan()
 	}
 
-	// Make rapid changes
+	// Make rapid changes immediately
 	go func() {
-		time.Sleep(500 * time.Millisecond)
 		for i := 0; i < 10; i++ {
 			content := fmt.Sprintf("# Update %d", i)
 			_ = os.WriteFile(testFile, []byte(content), 0644)
@@ -260,7 +250,7 @@ func TestE2E_FileWatcher_Cleanup(t *testing.T) {
 	if env.ServerCmd.Process != nil {
 		_ = env.ServerCmd.Process.Kill()
 		_ = env.ServerCmd.Wait()
-		time.Sleep(200 * time.Millisecond)
+		_ = waitForProcessStop(env.ServerCmd.Process, 2*time.Second)
 	}
 
 	// Register project
@@ -285,16 +275,13 @@ func TestE2E_FileWatcher_Cleanup(t *testing.T) {
 	require.NoError(t, err)
 	_ = resp.Body.Close() // Close connection immediately
 
-	// Give watcher time to register
-	time.Sleep(300 * time.Millisecond)
-
 	// Stop daemon - should clean up file watcher
 	output, err := env.runCLI(t, "server", "--stop")
 	require.NoError(t, err)
 	assert.Contains(t, output, "Sent SIGTERM")
 
 	// Wait for shutdown
-	time.Sleep(500 * time.Millisecond)
+	require.NoError(t, waitForPIDFileRemoved(env.PIDFile(), 2*time.Second))
 
 	// Restart and verify no issues from previous watchers
 	_, err = env.runCLI(t, "server", "--daemon")
@@ -309,7 +296,7 @@ func TestE2E_FileWatcher_Cleanup(t *testing.T) {
 
 	// Cleanup
 	_, _ = env.runCLI(t, "server", "--stop")
-	time.Sleep(500 * time.Millisecond)
+	_ = waitForPIDFileRemoved(env.PIDFile(), 2*time.Second)
 }
 
 func TestE2E_FileWatcher_SameFileMultipleClients(t *testing.T) {
@@ -340,10 +327,9 @@ func TestE2E_FileWatcher_SameFileMultipleClients(t *testing.T) {
 		}
 	}
 
-	// Modify the file
+	// Modify the file immediately
 	testFile := filepath.Join(env.ProjectDir, "test.md")
 	go func() {
-		time.Sleep(500 * time.Millisecond)
 		content, _ := os.ReadFile(testFile)
 		_ = os.WriteFile(testFile, append(content, []byte("\n\n## Multiple Watchers\n")...), 0644)
 	}()
@@ -401,17 +387,14 @@ func TestE2E_FileWatcher_DirectoryDeletion(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	// Wait for watcher to initialize
-	time.Sleep(500 * time.Millisecond)
+	// Wait for SSE connection and watcher to initialize
+	require.NoError(t, waitForSSEConnected(resp, 3*time.Second))
 
 	// Delete the entire subdirectory
 	err = os.RemoveAll(subDir)
 	require.NoError(t, err)
 
-	// Watcher should handle directory deletion gracefully
-	time.Sleep(500 * time.Millisecond)
-
-	// Verify server is still responsive
+	// Watcher should handle directory deletion gracefully - verify server is still responsive
 	healthResp, err := http.Get(env.BaseURL + "/")
 	require.NoError(t, err)
 	_ = healthResp.Body.Close()
