@@ -253,3 +253,198 @@ func TestE2E_Markdown_ThreadedComments(t *testing.T) {
 	assert.Contains(t, viewerStr, "\\u003cstrong\\u003eImportant\\u003c/strong\\u003e")
 	assert.Contains(t, viewerStr, "\\u003cem\\u003eagree\\u003c/em\\u003e")
 }
+
+func TestE2E_Markdown_GFM_Tables(t *testing.T) {
+	env := setupE2E(t)
+	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)
+	require.NoError(t, err)
+
+	// Create a comment with a GFM table
+	comment := map[string]interface{}{
+		"project_directory": env.ProjectDir,
+		"file_path":         "test.md",
+		"line_start":        1,
+		"line_end":          1,
+		"selected_text":     "Test",
+		"comment_text": `Here's a table:
+
+| Feature | Status |
+|---------|--------|
+| Tables  | ✓      |
+| Links   | ✓      |`,
+	}
+
+	resp := env.postJSON(t, "/api/comments", comment)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	// Should contain table HTML (JSON-encoded)
+	assert.Contains(t, bodyStr, "rendered_html")
+	assert.Contains(t, bodyStr, "\\u003ctable\\u003e")
+	assert.Contains(t, bodyStr, "\\u003cthead\\u003e")
+	assert.Contains(t, bodyStr, "\\u003cth\\u003eFeature\\u003c/th\\u003e")
+	assert.Contains(t, bodyStr, "\\u003cth\\u003eStatus\\u003c/th\\u003e")
+	assert.Contains(t, bodyStr, "\\u003ctbody\\u003e")
+	assert.Contains(t, bodyStr, "\\u003ctd\\u003eTables\\u003c/td\\u003e")
+	assert.Contains(t, bodyStr, "\\u003c/table\\u003e")
+}
+
+func TestE2E_Markdown_GFM_Strikethrough(t *testing.T) {
+	env := setupE2E(t)
+	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)
+	require.NoError(t, err)
+
+	// Create a comment with strikethrough
+	comment := map[string]interface{}{
+		"project_directory": env.ProjectDir,
+		"file_path":         "test.md",
+		"line_start":        1,
+		"line_end":          1,
+		"selected_text":     "Test",
+		"comment_text":      "This is ~~incorrect~~ wrong text.",
+	}
+
+	resp := env.postJSON(t, "/api/comments", comment)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	// Should contain strikethrough HTML (JSON-encoded)
+	assert.Contains(t, bodyStr, "rendered_html")
+	assert.Contains(t, bodyStr, "\\u003cdel\\u003eincorrect\\u003c/del\\u003e")
+}
+
+func TestE2E_Markdown_GFM_Linkify(t *testing.T) {
+	env := setupE2E(t)
+	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)
+	require.NoError(t, err)
+
+	// Create a comment with a bare URL (should be auto-linked)
+	comment := map[string]interface{}{
+		"project_directory": env.ProjectDir,
+		"file_path":         "test.md",
+		"line_start":        1,
+		"line_end":          1,
+		"selected_text":     "Test",
+		"comment_text":      "Check this out: https://example.com and http://test.org",
+	}
+
+	resp := env.postJSON(t, "/api/comments", comment)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	// Should contain auto-linked URLs (JSON-encoded)
+	assert.Contains(t, bodyStr, "rendered_html")
+	assert.Contains(t, bodyStr, "\\u003ca href=\\\"https://example.com\\\"\\u003ehttps://example.com\\u003c/a\\u003e")
+	assert.Contains(t, bodyStr, "\\u003ca href=\\\"http://test.org\\\"\\u003ehttp://test.org\\u003c/a\\u003e")
+}
+
+func TestE2E_Markdown_GFM_TaskList(t *testing.T) {
+	env := setupE2E(t)
+	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)
+	require.NoError(t, err)
+
+	// Create a comment with a task list
+	comment := map[string]interface{}{
+		"project_directory": env.ProjectDir,
+		"file_path":         "test.md",
+		"line_start":        1,
+		"line_end":          1,
+		"selected_text":     "Test",
+		"comment_text": `TODO list:
+
+- [x] Completed task
+- [ ] Incomplete task
+- [x] Another completed task`,
+	}
+
+	resp := env.postJSON(t, "/api/comments", comment)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	// Should contain task list HTML with checkboxes (JSON-encoded)
+	assert.Contains(t, bodyStr, "rendered_html")
+
+	// Goldmark renders task lists with input checkboxes
+	// Checked: <input disabled="" type="checkbox" checked=""> or <input type="checkbox" checked disabled>
+	// Unchecked: <input disabled="" type="checkbox"> or <input type="checkbox" disabled>
+	assert.Contains(t, bodyStr, "\\u003cinput")
+	assert.Contains(t, bodyStr, "type=\\\"checkbox\\\"")
+	assert.Contains(t, bodyStr, "checked")
+	assert.Contains(t, bodyStr, "disabled")
+
+	// Should contain the task text
+	assert.Contains(t, bodyStr, "Completed task")
+	assert.Contains(t, bodyStr, "Incomplete task")
+	assert.Contains(t, bodyStr, "Another completed task")
+}
+
+func TestE2E_Markdown_GFM_AllExtensions(t *testing.T) {
+	env := setupE2E(t)
+	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)
+	require.NoError(t, err)
+
+	// Create a comment that uses all GFM extensions together
+	comment := map[string]interface{}{
+		"project_directory": env.ProjectDir,
+		"file_path":         "test.md",
+		"line_start":        1,
+		"line_end":          1,
+		"selected_text":     "Test",
+		"comment_text": `# GFM Features Demo
+
+## Table
+| Feature       | Supported |
+|---------------|-----------|
+| Tables        | Yes       |
+| ~~Old Style~~ | No        |
+
+## Links
+Visit https://github.com for more info.
+
+## Tasks
+- [x] Test tables
+- [x] Test strikethrough
+- [ ] Test more features`,
+	}
+
+	resp := env.postJSON(t, "/api/comments", comment)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	// Should contain all GFM features (JSON-encoded)
+	assert.Contains(t, bodyStr, "rendered_html")
+
+	// Headings
+	assert.Contains(t, bodyStr, "\\u003ch1\\u003eGFM Features Demo\\u003c/h1\\u003e")
+	assert.Contains(t, bodyStr, "\\u003ch2\\u003eTable\\u003c/h2\\u003e")
+
+	// Table
+	assert.Contains(t, bodyStr, "\\u003ctable\\u003e")
+	assert.Contains(t, bodyStr, "\\u003cth\\u003eFeature\\u003c/th\\u003e")
+
+	// Strikethrough
+	assert.Contains(t, bodyStr, "\\u003cdel\\u003eOld Style\\u003c/del\\u003e")
+
+	// Auto-linked URL
+	assert.Contains(t, bodyStr, "\\u003ca href=\\\"https://github.com\\\"")
+
+	// Task list
+	assert.Contains(t, bodyStr, "type=\\\"checkbox\\\"")
+	assert.Contains(t, bodyStr, "Test tables")
+	assert.Contains(t, bodyStr, "Test strikethrough")
+}

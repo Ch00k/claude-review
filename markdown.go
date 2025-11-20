@@ -8,6 +8,7 @@ import (
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	gmhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
@@ -180,6 +181,7 @@ func customWrapperRenderer(w util.BufWriter, context highlighting.CodeBlockConte
 func RenderMarkdownWithLineNumbers(source []byte) ([]byte, error) {
 	md := goldmark.New(
 		goldmark.WithExtensions(
+			extension.GFM,
 			&LineAttributeExtension{},
 			highlighting.NewHighlighting(
 				highlighting.WithStyle("friendly"),
@@ -207,6 +209,7 @@ func RenderMarkdownWithLineNumbers(source []byte) ([]byte, error) {
 func RenderMarkdown(source []byte) ([]byte, error) {
 	md := goldmark.New(
 		goldmark.WithExtensions(
+			extension.GFM,
 			highlighting.NewHighlighting(
 				highlighting.WithStyle("friendly"),
 				highlighting.WithFormatOptions(
