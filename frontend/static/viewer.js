@@ -319,7 +319,16 @@
 
                 const highlight = document.querySelector(`.comment-highlight[data-comment-id="${comment.id}"]`);
                 if (highlight) {
-                    highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Open any parent <details> elements so the highlight is visible
+                    let parent = highlight.parentElement;
+                    while (parent) {
+                        if (parent.tagName === 'DETAILS' && !parent.open) {
+                            parent.open = true;
+                        }
+                        parent = parent.parentElement;
+                    }
+                    // Defer scroll one frame so the now-expanded details have laid out
+                    requestAnimationFrame(() => highlight.scrollIntoView({ behavior: 'smooth', block: 'center' }));
                     highlight.style.backgroundColor = '#ffeb99';
                     setTimeout(() => {
                         highlight.style.backgroundColor = '#fff8c5';
@@ -977,13 +986,20 @@
 
         // Fallback 2: progressive prefix matching. The original block was rewritten, so
         // the full selected_text no longer exists contiguously. Try shorter and shorter
-        // prefixes until we find a match — gives an approximate anchor near the original.
-        const prefixLengths = [200, 100, 50, 30, 20];
-        for (const len of prefixLengths) {
-            if (len >= text.length) continue;
-            const prefix = text.substring(0, len).trim();
-            if (prefix.length < 10) break; // too short to be specific
-            range = searchAllBlocks(prefix);
+        // prefixes until we find a match. We always probe the FIRST LINE of the selection
+        // first, since multi-line selections cross HTML element boundaries (where text
+        // node concatenation drops the newline) and won't match as a single substring.
+        const firstLine = text.split('\n')[0].trim();
+        const probes = [firstLine];
+        for (const len of [200, 100, 50, 30, 20]) {
+            if (len < text.length) {
+                const p = text.substring(0, len).trim();
+                if (p.length >= 10 && !probes.includes(p)) probes.push(p);
+            }
+        }
+        for (const probe of probes) {
+            if (probe.length < 10) continue; // too short to be specific
+            range = searchAllBlocks(probe);
             if (range) {
                 highlightComment(range, comment);
                 return;
