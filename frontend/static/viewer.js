@@ -319,7 +319,16 @@
 
                 const highlight = document.querySelector(`.comment-highlight[data-comment-id="${comment.id}"]`);
                 if (highlight) {
-                    highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Open any parent <details> elements so the highlight is visible
+                    let parent = highlight.parentElement;
+                    while (parent) {
+                        if (parent.tagName === 'DETAILS' && !parent.open) {
+                            parent.open = true;
+                        }
+                        parent = parent.parentElement;
+                    }
+                    // Defer scroll one frame so the now-expanded details have laid out
+                    requestAnimationFrame(() => highlight.scrollIntoView({ behavior: 'smooth', block: 'center' }));
                     highlight.style.backgroundColor = '#ffeb99';
                     setTimeout(() => {
                         highlight.style.backgroundColor = '#fff8c5';
@@ -946,7 +955,81 @@
             }
         }
 
-        console.warn('Could not find text to highlight:', text);
+        // Fallback 1: line range filter found nothing or text drifted out of the original range.
+        // Search the ENTIRE document for the full selected_text.
+        const allBlocks = content.querySelectorAll('[data-line-start]');
+        const searchAllBlocks = (searchText) => {
+            for (const block of allBlocks) {
+                const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null, false);
+                let node;
+                while ((node = walker.nextNode())) {
+                    const index = node.textContent.indexOf(searchText);
+                    if (index !== -1) {
+                        const range = document.createRange();
+                        range.setStart(node, index);
+                        range.setEnd(node, index + searchText.length);
+                        return range;
+                    }
+                }
+                const blockText = block.textContent;
+                const textIndex = blockText.indexOf(searchText);
+                if (textIndex !== -1) {
+                    const range = findTextRange(block, searchText, textIndex);
+                    if (range) return range;
+                }
+            }
+            return null;
+        };
+
+        let range = searchAllBlocks(text);
+        if (range) { highlightComment(range, comment); return; }
+
+        // Fallback 2: progressive prefix matching. The original block was rewritten, so
+        // the full selected_text no longer exists contiguously. Try shorter and shorter
+        // prefixes until we find a match. We always probe the FIRST LINE of the selection
+        // first, since multi-line selections cross HTML element boundaries (where text
+        // node concatenation drops the newline) and won't match as a single substring.
+        const firstLine = text.split('\n')[0].trim();
+        const probes = [firstLine];
+        for (const len of [200, 100, 50, 30, 20]) {
+            if (len < text.length) {
+                const p = text.substring(0, len).trim();
+                if (p.length >= 10 && !probes.includes(p)) probes.push(p);
+            }
+        }
+        for (const probe of probes) {
+            if (probe.length < 10) continue; // too short to be specific
+            range = searchAllBlocks(probe);
+            if (range) {
+                highlightComment(range, comment);
+                return;
+            }
+        }
+
+        // Fallback 3: text is gone entirely. Anchor to the nearest section heading
+        // (h2/h3/h4) at or before the comment's original line. The comment becomes a
+        // "section anchor" instead of an exact-text anchor — better than orphaning.
+        const headings = content.querySelectorAll('h2[data-line-start], h3[data-line-start], h4[data-line-start]');
+        let containingHeading = null;
+        let containingLine = -1;
+        for (const h of headings) {
+            const hLine = parseInt(h.getAttribute('data-line-start'), 10);
+            // Find the heading whose line is the largest one ≤ the comment's original
+            // line. This is deterministically the section that contained the comment.
+            if (hLine <= comment.line_start && hLine > containingLine) {
+                containingLine = hLine;
+                containingHeading = h;
+            }
+        }
+        if (containingHeading) {
+            // Synthesize a range over the heading element so click-to-scroll works.
+            const range = document.createRange();
+            range.selectNodeContents(containingHeading);
+            highlightComment(range, comment);
+            return;
+        }
+
+        console.warn('Could not find text to highlight (all fallbacks failed):', text.substring(0, 60));
     }
 
     /**
