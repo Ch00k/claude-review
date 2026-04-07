@@ -946,36 +946,74 @@
             }
         }
 
-        // Fallback: line range filter found nothing or text drifted out of the original range.
-        // Search the ENTIRE document for the selected_text. This keeps comments anchored
-        // even after a re-render shifts content, instead of orphaning them.
+        // Fallback 1: line range filter found nothing or text drifted out of the original range.
+        // Search the ENTIRE document for the full selected_text.
         const allBlocks = content.querySelectorAll('[data-line-start]');
-        for (const block of allBlocks) {
-            if (relevantBlocks.includes(block)) continue; // already searched above
-            const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null, false);
-            let node;
-            while ((node = walker.nextNode())) {
-                const index = node.textContent.indexOf(text);
-                if (index !== -1) {
-                    const range = document.createRange();
-                    range.setStart(node, index);
-                    range.setEnd(node, index + text.length);
-                    highlightComment(range, comment);
-                    return;
+        const searchAllBlocks = (searchText) => {
+            for (const block of allBlocks) {
+                const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null, false);
+                let node;
+                while ((node = walker.nextNode())) {
+                    const index = node.textContent.indexOf(searchText);
+                    if (index !== -1) {
+                        const range = document.createRange();
+                        range.setStart(node, index);
+                        range.setEnd(node, index + searchText.length);
+                        return range;
+                    }
+                }
+                const blockText = block.textContent;
+                const textIndex = blockText.indexOf(searchText);
+                if (textIndex !== -1) {
+                    const range = findTextRange(block, searchText, textIndex);
+                    if (range) return range;
                 }
             }
-            const blockText = block.textContent;
-            const textIndex = blockText.indexOf(text);
-            if (textIndex !== -1) {
-                const range = findTextRange(block, text, textIndex);
-                if (range) {
-                    highlightComment(range, comment);
-                    return;
-                }
+            return null;
+        };
+
+        let range = searchAllBlocks(text);
+        if (range) { highlightComment(range, comment); return; }
+
+        // Fallback 2: progressive prefix matching. The original block was rewritten, so
+        // the full selected_text no longer exists contiguously. Try shorter and shorter
+        // prefixes until we find a match — gives an approximate anchor near the original.
+        const prefixLengths = [200, 100, 50, 30, 20];
+        for (const len of prefixLengths) {
+            if (len >= text.length) continue;
+            const prefix = text.substring(0, len).trim();
+            if (prefix.length < 10) break; // too short to be specific
+            range = searchAllBlocks(prefix);
+            if (range) {
+                highlightComment(range, comment);
+                return;
             }
         }
 
-        console.warn('Could not find text to highlight:', text);
+        // Fallback 3: text is gone entirely. Anchor to the nearest section heading
+        // (h2/h3/h4) at or before the comment's original line. The comment becomes a
+        // "section anchor" instead of an exact-text anchor — better than orphaning.
+        const headings = content.querySelectorAll('h2[data-line-start], h3[data-line-start], h4[data-line-start]');
+        let containingHeading = null;
+        let containingLine = -1;
+        for (const h of headings) {
+            const hLine = parseInt(h.getAttribute('data-line-start'), 10);
+            // Find the heading whose line is the largest one ≤ the comment's original
+            // line. This is deterministically the section that contained the comment.
+            if (hLine <= comment.line_start && hLine > containingLine) {
+                containingLine = hLine;
+                containingHeading = h;
+            }
+        }
+        if (containingHeading) {
+            // Synthesize a range over the heading element so click-to-scroll works.
+            const range = document.createRange();
+            range.selectNodeContents(containingHeading);
+            highlightComment(range, comment);
+            return;
+        }
+
+        console.warn('Could not find text to highlight (all fallbacks failed):', text.substring(0, 60));
     }
 
     /**
