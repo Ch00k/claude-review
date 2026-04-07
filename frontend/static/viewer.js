@@ -946,6 +946,35 @@
             }
         }
 
+        // Fallback: line range filter found nothing or text drifted out of the original range.
+        // Search the ENTIRE document for the selected_text. This keeps comments anchored
+        // even after a re-render shifts content, instead of orphaning them.
+        const allBlocks = content.querySelectorAll('[data-line-start]');
+        for (const block of allBlocks) {
+            if (relevantBlocks.includes(block)) continue; // already searched above
+            const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while ((node = walker.nextNode())) {
+                const index = node.textContent.indexOf(text);
+                if (index !== -1) {
+                    const range = document.createRange();
+                    range.setStart(node, index);
+                    range.setEnd(node, index + text.length);
+                    highlightComment(range, comment);
+                    return;
+                }
+            }
+            const blockText = block.textContent;
+            const textIndex = blockText.indexOf(text);
+            if (textIndex !== -1) {
+                const range = findTextRange(block, text, textIndex);
+                if (range) {
+                    highlightComment(range, comment);
+                    return;
+                }
+            }
+        }
+
         console.warn('Could not find text to highlight:', text);
     }
 
