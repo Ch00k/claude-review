@@ -38,6 +38,21 @@ in seconds rather than minutes.
 5. Continue the discussion by adding replies to comment threads in the browser
 6. Repeat steps 4-5 until the document matches your intent
 
+### File paths
+
+The `--file` argument accepts:
+
+- a path relative to the current working directory (the original behaviour):
+  `/cr-review PLAN.md`
+- an absolute path — the parent directory is treated as the project:
+  `/cr-review /Users/me/.claude/plans/PLAN.md`
+- a `~/`-prefixed path (Claude Code's slash commands quote `$ARGUMENTS`, so the
+  shell does not expand `~` for you):
+  `/cr-review ~/.claude/plans/PLAN.md`
+
+This is useful when the document lives outside your project — for example,
+plans Claude Code writes to `~/.claude/plans/`.
+
 ## Requirements
 
 - Linux or macOS
