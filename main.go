@@ -30,7 +30,12 @@ import (
 // user did pass --project explicitly we leave it alone; otherwise an absolute
 // --file overrides it.
 func resolveFileArg(projectDir, filePath *string, projectDirDefaultedToCwd bool) {
+	// Slash-command substitution of "$ARGUMENTS" can preserve leading or
+	// trailing whitespace that the user (or the model) typed; trim first so
+	// the prefix checks below don't all silently miss.
+	*filePath = strings.TrimSpace(*filePath)
 	*filePath = strings.TrimPrefix(*filePath, "@")
+	*filePath = strings.TrimSpace(*filePath)
 
 	if strings.HasPrefix(*filePath, "~/") {
 		if home, err := os.UserHomeDir(); err == nil {

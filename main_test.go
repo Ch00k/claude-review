@@ -68,6 +68,38 @@ func TestResolveFileArg(t *testing.T) {
 			wantProjectDir:           filepath.Join(home, ".claude/plans"),
 			wantFilePath:             "foo.md",
 		},
+		{
+			name:                     "leading space before ~/",
+			inProjectDir:             "/cwd",
+			inFilePath:               " ~/.claude/plans/foo.md",
+			projectDirDefaultedToCwd: true,
+			wantProjectDir:           filepath.Join(home, ".claude/plans"),
+			wantFilePath:             "foo.md",
+		},
+		{
+			name:                     "leading space before absolute path",
+			inProjectDir:             "/cwd",
+			inFilePath:               " /Users/me/.claude/plans/foo.md",
+			projectDirDefaultedToCwd: true,
+			wantProjectDir:           "/Users/me/.claude/plans",
+			wantFilePath:             "foo.md",
+		},
+		{
+			name:                     "trailing whitespace stripped",
+			inProjectDir:             "/cwd",
+			inFilePath:               "sub/plan.md  \t\n",
+			projectDirDefaultedToCwd: true,
+			wantProjectDir:           "/cwd",
+			wantFilePath:             "sub/plan.md",
+		},
+		{
+			name:                     "space between @ and ~/",
+			inProjectDir:             "/cwd",
+			inFilePath:               "@ ~/.claude/plans/foo.md",
+			projectDirDefaultedToCwd: true,
+			wantProjectDir:           filepath.Join(home, ".claude/plans"),
+			wantFilePath:             "foo.md",
+		},
 	}
 
 	for _, tc := range tests {
