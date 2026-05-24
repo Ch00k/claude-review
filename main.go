@@ -7,11 +7,42 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
+
+// resolveFileArg normalizes a --file value supplied to review/address/resolve.
+// It handles three Claude-Code-flavoured inputs that the existing code did not:
+//
+//  1. a leading "@" (paste artefact from the Claude Code UI),
+//  2. a leading "~/" (tilde expansion is suppressed when slash-commands quote
+//     "$ARGUMENTS"),
+//  3. an absolute path (e.g. "/Users/me/.claude/plans/foo.md") — in that case
+//     the parent directory becomes the project directory and the basename the
+//     file path, so the existing filepath.Join(projectDir, filePath) on the
+//     server side resolves to the file the user actually meant.
+//
+// projectDirDefaultedToCwd indicates whether the caller has already populated
+// *projectDir from os.Getwd() (i.e. the user did not pass --project). When the
+// user did pass --project explicitly we leave it alone; otherwise an absolute
+// --file overrides it.
+func resolveFileArg(projectDir, filePath *string, projectDirDefaultedToCwd bool) {
+	*filePath = strings.TrimPrefix(*filePath, "@")
+
+	if strings.HasPrefix(*filePath, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			*filePath = filepath.Join(home, (*filePath)[2:])
+		}
+	}
+
+	if filepath.IsAbs(*filePath) && projectDirDefaultedToCwd {
+		*projectDir = filepath.Dir(*filePath)
+		*filePath = filepath.Base(*filePath)
+	}
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -205,7 +236,8 @@ func runReview() {
 	}
 
 	// Resolve project directory (default to current directory)
-	if *projectDir == "" || *projectDir == "." {
+	projectDirDefaulted := *projectDir == "" || *projectDir == "."
+	if projectDirDefaulted {
 		cwd, err := os.Getwd()
 		if err != nil {
 			log.Fatalf("Failed to get current directory: %v", err)
@@ -218,8 +250,7 @@ func runReview() {
 		os.Exit(1)
 	}
 
-	// Remove @ prefix if present
-	*filePath = strings.TrimPrefix(*filePath, "@")
+	resolveFileArg(projectDir, filePath, projectDirDefaulted)
 
 	// Step 1: Start daemon if not running
 	if !isServerRunning() {
@@ -264,7 +295,8 @@ func runAddress() {
 	}
 
 	// Resolve project directory (default to current directory)
-	if *projectDir == "" || *projectDir == "." {
+	projectDirDefaulted := *projectDir == "" || *projectDir == "."
+	if projectDirDefaulted {
 		cwd, err := os.Getwd()
 		if err != nil {
 			log.Fatalf("Failed to get current directory: %v", err)
@@ -276,8 +308,7 @@ func runAddress() {
 		os.Exit(1)
 	}
 
-	// Remove @ prefix if present
-	*filePath = strings.TrimPrefix(*filePath, "@")
+	resolveFileArg(projectDir, filePath, projectDirDefaulted)
 
 	// Initialize database
 	if err := initDB(); err != nil {
@@ -489,7 +520,8 @@ func runResolve() {
 
 	// Handle file mode (original behavior)
 	// Resolve project directory (default to current directory)
-	if *projectDir == "" || *projectDir == "." {
+	projectDirDefaulted := *projectDir == "" || *projectDir == "."
+	if projectDirDefaulted {
 		cwd, err := os.Getwd()
 		if err != nil {
 			log.Fatalf("Failed to get current directory: %v", err)
@@ -501,8 +533,7 @@ func runResolve() {
 		os.Exit(1)
 	}
 
-	// Remove @ prefix if present
-	*filePath = strings.TrimPrefix(*filePath, "@")
+	resolveFileArg(projectDir, filePath, projectDirDefaulted)
 
 	// Debug: show what we're searching for
 	log.Printf("Searching for comments: project_directory=%q, file_path=%q", *projectDir, *filePath)
