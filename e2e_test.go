@@ -509,6 +509,29 @@ func TestE2E_WebInterface_DirectoryListing(t *testing.T) {
 	assert.Contains(t, bodyStr, "simple.md")
 }
 
+func TestE2E_WebInterface_RawFile(t *testing.T) {
+	env := setupE2E(t)
+	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)
+	require.NoError(t, err)
+
+	// An image that a document embeds with a relative link, e.g. ![](diagrams/flow.svg)
+	svg := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>`
+	require.NoError(t, os.MkdirAll(filepath.Join(env.ProjectDir, "diagrams"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(env.ProjectDir, "diagrams", "flow.svg"), []byte(svg), 0644))
+
+	url := fmt.Sprintf("%s/projects%s/diagrams/flow.svg", env.BaseURL, env.ProjectDir)
+
+	resp, err := http.Get(url)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "image/svg+xml", resp.Header.Get("Content-Type"))
+	assert.Equal(t, "no-cache", resp.Header.Get("Cache-Control"))
+	body, _ := io.ReadAll(resp.Body)
+	assert.Equal(t, svg, string(body))
+}
+
 func TestE2E_PathTraversal_Security(t *testing.T) {
 	env := setupE2E(t)
 	_, err := env.runCLI(t, "register", "--project", env.ProjectDir)

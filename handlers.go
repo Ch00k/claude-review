@@ -135,10 +135,10 @@ func handleProjectFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Otherwise serve raw file
-	prefix := "/projects/" + url.PathEscape(project)
-	fs := http.FileServer(http.Dir(project))
-	http.StripPrefix(prefix, fs).ServeHTTP(w, r)
+	// Otherwise serve raw file, such as an image the document embeds.
+	// no-cache makes the browser revalidate it on reload, so edits show up.
+	w.Header().Set("Cache-Control", "no-cache")
+	http.ServeFileFS(w, r, os.DirFS(project), childPath)
 }
 
 func renderViewer(w http.ResponseWriter, r *http.Request, projectDir, filePath string) {
